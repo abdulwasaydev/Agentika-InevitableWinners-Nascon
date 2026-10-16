@@ -19,16 +19,16 @@ The two product interfaces share one verification engine:
 
 Locally, the frontend proxies `/api` to `http://localhost:8000`. Planned production packaging is one Docker image: FastAPI serves the compiled frontend and API from one origin and connects to Supabase. Deployment, connectivity, and cost must be verified before claiming success.
 
-## Ownership and parallel development
+## Ownership and integration
 
 | Owner | Writable scope |
 | --- | --- |
-| Arman / backend agent | `backend/**`, `contracts/**`, shared fixtures and documentation, migrations, root deployment/configuration |
-| Abdul Wasay / frontend agent | `frontend/**`, including frontend dependencies and lockfile, and `docs/FRONTEND.md` |
+| Arman / integration branch | Backend, frontend, contracts, shared fixtures, and documentation on `arman/backend-foundation` |
+| Abdul Wasay | Original frontend work preserved on `wasay/frontend-foundation` |
 
 The frontend calls FastAPI for application data and review decisions; it does not access the database or AI/search providers directly. All database and provider credentials stay on the backend.
 
-Work on separate task branches and integrate through reviewed pull requests into `main`. Do not force-push, discard another person's work, or merge automatically. Shared contract changes are coordinated through Arman's agent. Follow [AGENTS.md](AGENTS.md).
+Wasay's frontend files were copied selectively into Arman's branch without modifying his branch or history. Keep new integration work on `arman/backend-foundation`. Do not force-push, discard another person's work, or merge into `main` automatically. Follow [AGENTS.md](AGENTS.md).
 
 ## Local-first build plan
 
@@ -41,9 +41,9 @@ Work on separate task branches and integrate through reviewed pull requests into
 
 Use [the product specification](docs/VERITAS_CODEX_CONTEXT.md) for detailed requirements. The agreed decisions in this README take precedence over older stack suggestions in that document. Prioritize the working core flow over MCP, elaborate graphs, PDF ingestion, or other stretch features.
 
-## Frontend development while the backend is pending
+## Frontend modes
 
-Wasay's agent should continue building the complete interface with frontend-local dummy data rather than wait for the backend.
+The interface has an explicit synthetic mode for local demonstrations and a live mode that calls FastAPI. Live mode is the default.
 
 - Put mock behavior behind the same typed adapter interface as real API requests.
 - Enable mock mode explicitly and display **Demo mode — simulated verification**.
@@ -78,7 +78,7 @@ See [backend setup](backend/README.md) for current commands and configuration. M
 
 ## Current recorded status
 
-Backend code now includes a generated contract, PostgreSQL models and reviewable migration SQL, one bounded worker, a deterministic synthetic verification flow, review/audit history, strict and balanced release policy, minimal explicit lineage, and optional Brave Search / OpenAI-compatible provider adapters. Unit and contract checks pass locally. PostgreSQL persistence and live provider calls still need an isolated configured environment for execution tests; frontend integration, production packaging, and deployment are not yet verified. Search snippets are labeled unverified and cannot alone produce a `pass`.
+Backend code includes a generated contract, PostgreSQL models and reviewable migration SQL, one bounded worker, deterministic synthetic verification, review/audit history, strict and balanced release policy, minimal explicit lineage, and optional Brave Search / OpenAI-compatible provider adapters. Wasay's frontend is integrated on this branch with responsive styling, passing tests and production build, and a client adapted to the canonical FastAPI responses. PostgreSQL persistence and live provider calls still need an isolated configured environment for execution tests; production packaging and deployment are not verified. Search snippets are labeled unverified and cannot alone produce a `pass`.
 
 ## Event requirements
 

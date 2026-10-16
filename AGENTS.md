@@ -12,6 +12,6 @@
 - Push work branches to `origin` with their matching upstream branches when appropriate.
 - For integration, commit and push the intended work first, then report the commits and files changed. Merge into `main` only with explicit user approval.
 - Keep explanations to the user within 20 lines unless the user asks for a concept to be explained.
-- Arman owns `backend/**`, `contracts/**`, shared fixtures, `README.md`, `AGENTS.md`, backend documentation, and root deployment/configuration files. Abdul Wasay owns `frontend/**` and `docs/FRONTEND.md`; do not edit those paths for backend work.
+- Arman now integrates backend and frontend on `arman/backend-foundation` at the user's direction. Preserve Wasay's original `wasay/frontend-foundation` branch and give credit for his imported frontend foundation.
 - Build locally first. Do not deploy, create cloud resources, access SocietyOS, or apply Supabase migrations automatically. Store credentials only in local environment variables.
 - The decisions in the pasted backend task override conflicting stack and deployment suggestions in `docs/VERITAS_CODEX_CONTEXT.md`.
