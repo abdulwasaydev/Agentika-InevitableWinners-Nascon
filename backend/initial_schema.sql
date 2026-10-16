@@ -1,44 +1,44 @@
-﻿BEGIN;
+BEGIN;
 
 CREATE TABLE alembic_version (
-    version_num VARCHAR(32) NOT NULL, 
+    version_num VARCHAR(32) NOT NULL,
     CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
 );
 
 -- Running upgrade  -> 0001_initial
 
 CREATE TABLE verification_jobs (
-    id UUID NOT NULL, 
-    mode VARCHAR(20) NOT NULL, 
-    input_text TEXT NOT NULL, 
-    policy VARCHAR(20) NOT NULL, 
-    origin VARCHAR(80) NOT NULL, 
-    parent_claim_ids JSON NOT NULL, 
-    status VARCHAR(20) NOT NULL, 
-    overall_action VARCHAR(30), 
-    error_code VARCHAR(100), 
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    id UUID NOT NULL,
+    mode VARCHAR(20) NOT NULL,
+    input_text TEXT NOT NULL,
+    policy VARCHAR(20) NOT NULL,
+    origin VARCHAR(80) NOT NULL,
+    parent_claim_ids JSON NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    overall_action VARCHAR(30),
+    error_code VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (id)
 );
 
 CREATE INDEX ix_verification_jobs_status ON verification_jobs (status);
 
 CREATE TABLE claims (
-    id UUID NOT NULL, 
-    job_id UUID NOT NULL, 
-    text TEXT NOT NULL, 
-    start_offset INTEGER, 
-    end_offset INTEGER, 
-    checkability VARCHAR(30) NOT NULL, 
-    provisional_status VARCHAR(30) NOT NULL, 
-    effective_status VARCHAR(30) NOT NULL, 
-    reason_codes JSON NOT NULL, 
-    needs_review BOOLEAN NOT NULL, 
-    corrected_text TEXT, 
-    material BOOLEAN NOT NULL, 
-    high_risk BOOLEAN NOT NULL, 
-    PRIMARY KEY (id), 
+    id UUID NOT NULL,
+    job_id UUID NOT NULL,
+    text TEXT NOT NULL,
+    start_offset INTEGER,
+    end_offset INTEGER,
+    checkability VARCHAR(30) NOT NULL,
+    provisional_status VARCHAR(30) NOT NULL,
+    effective_status VARCHAR(30) NOT NULL,
+    reason_codes JSON NOT NULL,
+    needs_review BOOLEAN NOT NULL,
+    corrected_text TEXT,
+    material BOOLEAN NOT NULL,
+    high_risk BOOLEAN NOT NULL,
+    PRIMARY KEY (id),
     FOREIGN KEY(job_id) REFERENCES verification_jobs (id) ON DELETE CASCADE
 );
 
@@ -51,63 +51,63 @@ CREATE INDEX ix_claims_needs_review ON claims (needs_review);
 CREATE INDEX ix_claim_job_status ON claims (job_id, effective_status);
 
 CREATE TABLE evidence (
-    id UUID NOT NULL, 
-    claim_id UUID NOT NULL, 
-    stance VARCHAR(20) NOT NULL, 
-    source_type VARCHAR(40) NOT NULL, 
-    provenance VARCHAR(40) NOT NULL, 
-    url TEXT, 
-    document_id VARCHAR(200), 
-    title TEXT NOT NULL, 
-    excerpt TEXT NOT NULL, 
-    source_text TEXT NOT NULL, 
-    retrieved_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-    published_at TIMESTAMP WITH TIME ZONE, 
-    validity_status VARCHAR(30) NOT NULL, 
-    PRIMARY KEY (id), 
+    id UUID NOT NULL,
+    claim_id UUID NOT NULL,
+    stance VARCHAR(20) NOT NULL,
+    source_type VARCHAR(40) NOT NULL,
+    provenance VARCHAR(40) NOT NULL,
+    url TEXT,
+    document_id VARCHAR(200),
+    title TEXT NOT NULL,
+    excerpt TEXT NOT NULL,
+    source_text TEXT NOT NULL,
+    retrieved_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    published_at TIMESTAMP WITH TIME ZONE,
+    validity_status VARCHAR(30) NOT NULL,
+    PRIMARY KEY (id),
     FOREIGN KEY(claim_id) REFERENCES claims (id) ON DELETE CASCADE
 );
 
 CREATE INDEX ix_evidence_claim_id ON evidence (claim_id);
 
 CREATE TABLE agent_assessments (
-    id UUID NOT NULL, 
-    claim_id UUID NOT NULL, 
-    role VARCHAR(20) NOT NULL, 
-    position VARCHAR(30) NOT NULL, 
-    reasoning_summary TEXT NOT NULL, 
-    evidence_ids JSON NOT NULL, 
-    limitations TEXT, 
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-    PRIMARY KEY (id), 
+    id UUID NOT NULL,
+    claim_id UUID NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    position VARCHAR(30) NOT NULL,
+    reasoning_summary TEXT NOT NULL,
+    evidence_ids JSON NOT NULL,
+    limitations TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
     FOREIGN KEY(claim_id) REFERENCES claims (id) ON DELETE CASCADE
 );
 
 CREATE INDEX ix_agent_assessments_claim_id ON agent_assessments (claim_id);
 
 CREATE TABLE human_reviews (
-    id UUID NOT NULL, 
-    claim_id UUID NOT NULL, 
-    decision VARCHAR(40) NOT NULL, 
-    reviewer_id VARCHAR(120) NOT NULL, 
-    rationale TEXT NOT NULL, 
-    corrected_text TEXT, 
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-    PRIMARY KEY (id), 
+    id UUID NOT NULL,
+    claim_id UUID NOT NULL,
+    decision VARCHAR(40) NOT NULL,
+    reviewer_id VARCHAR(120) NOT NULL,
+    rationale TEXT NOT NULL,
+    corrected_text TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
     FOREIGN KEY(claim_id) REFERENCES claims (id) ON DELETE CASCADE
 );
 
 CREATE INDEX ix_human_reviews_claim_id ON human_reviews (claim_id);
 
 CREATE TABLE claim_dependencies (
-    id UUID NOT NULL, 
-    parent_claim_id UUID NOT NULL, 
-    child_claim_id UUID NOT NULL, 
-    relationship VARCHAR(40) NOT NULL, 
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-    PRIMARY KEY (id), 
-    CONSTRAINT uq_claim_dependency UNIQUE (parent_claim_id, child_claim_id), 
-    FOREIGN KEY(parent_claim_id) REFERENCES claims (id) ON DELETE CASCADE, 
+    id UUID NOT NULL,
+    parent_claim_id UUID NOT NULL,
+    child_claim_id UUID NOT NULL,
+    relationship VARCHAR(40) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_claim_dependency UNIQUE (parent_claim_id, child_claim_id),
+    FOREIGN KEY(parent_claim_id) REFERENCES claims (id) ON DELETE CASCADE,
     FOREIGN KEY(child_claim_id) REFERENCES claims (id) ON DELETE CASCADE
 );
 
@@ -116,13 +116,13 @@ CREATE INDEX ix_claim_dependencies_parent_claim_id ON claim_dependencies (parent
 CREATE INDEX ix_claim_dependencies_child_claim_id ON claim_dependencies (child_claim_id);
 
 CREATE TABLE audit_events (
-    id UUID NOT NULL, 
-    entity_type VARCHAR(40) NOT NULL, 
-    entity_id UUID NOT NULL, 
-    action VARCHAR(80) NOT NULL, 
-    actor VARCHAR(120) NOT NULL, 
-    metadata_json JSON NOT NULL, 
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL, 
+    id UUID NOT NULL,
+    entity_type VARCHAR(40) NOT NULL,
+    entity_id UUID NOT NULL,
+    action VARCHAR(80) NOT NULL,
+    actor VARCHAR(120) NOT NULL,
+    metadata_json JSON NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (id)
 );
 
@@ -131,4 +131,3 @@ CREATE INDEX ix_audit_events_entity_id ON audit_events (entity_id);
 INSERT INTO alembic_version (version_num) VALUES ('0001_initial') RETURNING alembic_version.version_num;
 
 COMMIT;
-

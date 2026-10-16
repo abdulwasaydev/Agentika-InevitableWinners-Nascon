@@ -78,7 +78,7 @@ See [backend setup](backend/README.md) for current commands and configuration. M
 
 ## Current recorded status
 
-At the last README checkpoint, shared API schemas and the generated OpenAPI contract were implemented. Persistent backend logic and tests were in progress. Frontend integration, live providers, production packaging, and deployment were not yet verified. Agents should update this section with actual validated results, without claiming completion based on planned work.
+Backend code now includes a generated contract, PostgreSQL models and reviewable migration SQL, one bounded worker, a deterministic synthetic verification flow, review/audit history, strict and balanced release policy, minimal explicit lineage, and optional Brave Search / OpenAI-compatible provider adapters. Unit and contract checks pass locally. PostgreSQL persistence and live provider calls still need an isolated configured environment for execution tests; frontend integration, production packaging, and deployment are not yet verified. Search snippets are labeled unverified and cannot alone produce a `pass`.
 
 ## Event requirements
 

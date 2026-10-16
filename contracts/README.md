@@ -18,6 +18,6 @@ Use the `poll_url` after submission. On completion, render evidence and assessme
 
 ## Errors
 
-Validation errors return HTTP 422. Unknown IDs return 404. Missing database configuration, migration, or a full worker queue returns 503 with an error description. Provider failures are represented in job status/reason codes and must not become a `pass`. There is no implicit in-memory persistence fallback.
+Validation errors return HTTP 422. Unknown IDs return 404. Review attempts before job completion return 409. Missing database configuration, migration, or a full worker queue returns 503 with an error description. Provider failures are represented in job status/reason codes and must not become a `pass`. There is no implicit in-memory persistence fallback.
 
-Example payloads in `examples/` are **synthetic contract illustrations**, not live verification results. The running API is initially a contract stub; see the root README for current implementation status.
+Example payloads in `examples/` are **synthetic contract illustrations**, not live verification results. The API requires the reviewed PostgreSQL schema before accepting jobs; see the root README for implementation and test status.
