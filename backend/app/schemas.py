@@ -45,6 +45,12 @@ class VerificationRequest(BaseModel):
     origin: Annotated[str, Field(min_length=1, max_length=80)] = "user_input"
     parent_claim_ids: list[UUID] = Field(default_factory=list, max_length=20)
 
+    @model_validator(mode="after")
+    def nonblank_text(self):
+        if not self.text.strip():
+            raise ValueError("text must contain non-whitespace characters")
+        return self
+
 
 class VerifyAccepted(BaseModel):
     job_id: UUID

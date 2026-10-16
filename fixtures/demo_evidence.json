@@ -1,0 +1,26 @@
+[
+  {
+    "claim_text": "The fictional Aster Archive opened in 2020.",
+    "document_id": "synthetic:aster-chronology",
+    "stance": "support",
+    "excerpt": "The fictional Aster Archive opened in 2020."
+  },
+  {
+    "claim_text": "The fictional Aster Archive opened in 2018.",
+    "document_id": "synthetic:aster-chronology",
+    "stance": "challenge",
+    "excerpt": "The fictional Aster Archive opened in 2020."
+  },
+  {
+    "claim_text": "The fictional Aster Archive has 12 rooms.",
+    "document_id": "synthetic:aster-chronology",
+    "stance": "support",
+    "excerpt": "The fictional Aster Archive has 12 rooms."
+  },
+  {
+    "claim_text": "The fictional Aster Archive has 20 rooms.",
+    "document_id": "synthetic:aster-chronology",
+    "stance": "challenge",
+    "excerpt": "The fictional Aster Archive has 12 rooms."
+  }
+]
