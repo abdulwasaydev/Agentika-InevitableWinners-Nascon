@@ -1,34 +1,91 @@
 import type { Action, Claim, Decision, Evidence, Finding, Job, JobStatus, Review, VeritasApi } from './types';
+
+/** The sole boundary between the canonical FastAPI contract and the UI view model. */
 export class ApiError extends Error {
   constructor(message: string, public readonly status?: number) { super(message); this.name = 'ApiError'; }
 }
-const contractError = () => new ApiError('API contract mismatch. This response cannot be trusted for release. Reconcile the frontend with the canonical contract.');
+const contractError = () => new ApiError('API contract mismatch. This response cannot authorize release.');
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw contractError();
   return value as Record<string, unknown>;
 }
 function string(value: unknown): string { if (typeof value !== 'string') throw contractError(); return value; }
 function strings(value: unknown): string[] { if (!Array.isArray(value)) throw contractError(); return value.map(string); }
+function array(value: unknown): unknown[] { if (!Array.isArray(value)) throw contractError(); return value; }
 function choice<T extends string>(value: unknown, choices: readonly T[]): T {
   if (typeof value !== 'string' || !choices.includes(value as T)) throw contractError();
   return value as T;
 }
+function optionalString(value: unknown): string | undefined { return value == null ? undefined : string(value); }
+function finding(value: unknown): Finding {
+  const canonical = choice(value, ['supported', 'disputed', 'insufficient_evidence', 'pending_review', 'not_checkable'] as const);
+  return canonical === 'disputed' ? 'challenged' : canonical;
+}
 function parseReview(value: unknown): Review {
   const r = record(value);
-  return { review_id: string(r.review_id), claim_id: string(r.claim_id), decision: choice<Decision>(r.decision, ['supported', 'challenged', 'uncertain']), rationale: string(r.rationale), correction: r.correction == null ? undefined : string(r.correction), created_at: string(r.created_at) };
+  const decision = choice(r.decision, ['approve', 'dispute', 'insufficient', 'request_more_evidence', 'correct'] as const);
+  const uiDecision: Decision = decision === 'approve' ? 'supported' : decision === 'dispute' || decision === 'correct' ? 'challenged' : decision === 'insufficient' ? 'uncertain' : 'more_evidence';
+  string(r.reviewer_id);
+  return {
+    review_id: string(r.id), claim_id: string(r.claim_id), decision: uiDecision,
+    rationale: string(r.rationale), correction: optionalString(r.corrected_text), created_at: string(r.created_at),
+  };
 }
 function parseEvidence(value: unknown): Evidence {
   const e = record(value);
-  return { evidence_id: string(e.evidence_id), document_id: e.document_id == null ? undefined : string(e.document_id), title: string(e.title), url: string(e.url), excerpt: string(e.excerpt), stance: choice(e.stance, ['supporting', 'challenging', 'context']) };
+  const stance = choice(e.stance, ['support', 'challenge', 'context'] as const);
+  return {
+    evidence_id: string(e.id), document_id: optionalString(e.document_id), title: string(e.title),
+    url: optionalString(e.url) ?? '', excerpt: string(e.excerpt),
+    stance: stance === 'support' ? 'supporting' : stance === 'challenge' ? 'challenging' : 'context',
+    source_type: string(e.source_type), provenance: string(e.provenance),
+    retrieved_at: string(e.retrieved_at), validity_status: string(e.validity_status),
+  };
 }
-function parseClaim(value: unknown): Claim {
+function parseClaim(value: unknown, detail = false): Claim {
   const c = record(value);
-  if (!Array.isArray(c.evidence)) throw contractError();
-  return { claim_id: string(c.claim_id), job_id: string(c.job_id), text: string(c.text), finding: choice<Finding>(c.finding, ['supported', 'challenged', 'insufficient_evidence', 'not_checkable']), explanation: string(c.explanation), evidence: c.evidence.map(parseEvidence), limitations: strings(c.limitations), reason_codes: strings(c.reason_codes), human_review: c.human_review == null ? null : parseReview(c.human_review) };
+  const provisional = finding(c.provisional_status);
+  const effective = finding(c.effective_status);
+  const needsReview = c.needs_review;
+  if (typeof needsReview !== 'boolean') throw contractError();
+  string(c.checkability);
+  const reasons = strings(c.reason_codes);
+  strings(c.support_evidence_ids); strings(c.challenge_evidence_ids);
+  const assessments = detail ? array(c.assessments).map(value => {
+    const a = record(value);
+    return { role: string(a.role), position: string(a.position), reasoning_summary: string(a.reasoning_summary), evidence_ids: strings(a.evidence_ids), limitations: optionalString(a.limitations) };
+  }) : [];
+  const evidence = detail ? array(c.evidence).map(parseEvidence) : [];
+  const history = detail ? array(c.reviews).map(parseReview) : [];
+  const parentIds = detail ? strings(c.parent_claim_ids) : [];
+  const explanation = detail
+    ? assessments.map(a => `${a.role}: ${a.reasoning_summary}`).join(' ') || 'No role assessment is available.'
+    : 'Open the claim to inspect the evidence and role assessments.';
+  return {
+    claim_id: string(c.id), job_id: string(c.job_id), text: string(c.text), finding: provisional,
+    effective_status: effective, needs_review: needsReview, explanation, evidence,
+    limitations: assessments.flatMap(a => a.limitations ? [a.limitations] : []),
+    reason_codes: reasons, human_review: history.at(-1) ?? null, review_history: history,
+    assessments, parent_claim_ids: parentIds,
+  };
 }
 function parseJob(value: unknown): Job {
   const j = record(value);
-  return { job_id: string(j.job_id), status: choice<JobStatus>(j.status, ['queued', 'processing', 'completed', 'review_pending', 'failed', 'interrupted', 'provider_unavailable']), submitted_text: string(j.submitted_text), overall_action: j.overall_action === null ? null : choice<Action>(j.overall_action, ['pass', 'annotate', 'hold_for_review']), claim_ids: strings(j.claim_ids), created_at: string(j.created_at), limitations: strings(j.limitations), reason_codes: strings(j.reason_codes), revised_output: j.revised_output == null ? null : string(j.revised_output), error: j.error == null ? null : string(j.error) };
+  const status = choice(j.status, ['queued', 'running', 'completed', 'failed', 'interrupted'] as const);
+  const action = j.overall_action == null ? null : choice<Action>(j.overall_action, ['pass', 'annotate', 'hold_for_review']);
+  if (status === 'completed' && action === null) throw contractError();
+  const claims = array(j.claims).map(item => parseClaim(item));
+  const id = string(j.id);
+  if (claims.some(claim => claim.job_id !== id)) throw contractError();
+  string(j.mode); string(j.policy); string(j.origin); string(j.updated_at);
+  const errorCode = optionalString(j.error_code);
+  return {
+    job_id: id, status: (status === 'running' ? 'processing' : status) as JobStatus,
+    submitted_text: string(j.input_text), overall_action: action,
+    claim_ids: claims.map(claim => claim.claim_id), created_at: string(j.created_at),
+    limitations: [], reason_codes: [],
+    error: errorCode ? `Verification stopped: ${errorCode}. No output is approved.` : null,
+  };
 }
 
 export function createLiveApi(fetcher: typeof fetch = fetch): VeritasApi {
@@ -36,33 +93,56 @@ export function createLiveApi(fetcher: typeof fetch = fetch): VeritasApi {
     let response: Response;
     try {
       const timeout = AbortSignal.timeout(15000);
-      response = await fetcher(`/api/v1${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, credentials: 'same-origin', signal: signal ? AbortSignal.any([signal, timeout]) : timeout, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+      response = await fetcher(`/api/v1${path}`, {
+        method: body === undefined ? 'GET' : 'POST',
+        headers: { Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+        credentials: 'same-origin', signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
     } catch (error) {
       if (signal?.aborted) throw error;
-      throw new ApiError('Live API unavailable. Check that the FastAPI backend is running on localhost:8000. No synthetic results were substituted.');
+      throw new ApiError('Live API unavailable. Check that FastAPI is running on localhost:8000. No synthetic results were substituted.');
     }
-    if (!response.ok) throw new ApiError(`Live API request failed (HTTP ${response.status}). No result is approved.`, response.status);
+    if (!response.ok) {
+      let message = `Live API request failed (HTTP ${response.status}). No result is approved.`;
+      try {
+        const payload = record(await response.json());
+        if (typeof payload.message === 'string') message += ` ${payload.message}`;
+      } catch { /* HTTP status remains authoritative. */ }
+      throw new ApiError(message, response.status);
+    }
     if (acceptedStatus && response.status !== acceptedStatus) throw new ApiError(`API contract mismatch: expected HTTP ${acceptedStatus}.`, response.status);
     try { return await response.json(); } catch { throw contractError(); }
   }
   return {
     async submit(input, signal) {
-      if (!input.text.trim() || input.text.length > 20000) throw new ApiError('Enter claim text between 1 and 20,000 characters.');
-      const result = record(await request('/verify', signal, { text: input.text }, 202));
+      if (!input.text.trim() || input.text.length > 8000) throw new ApiError('Enter claim text between 1 and 8,000 characters.');
+      const mode = input.mode ?? 'claim_court';
+      const result = record(await request('/verify', signal, {
+        text: input.text, mode, policy: 'strict', origin: mode === 'guardian' ? 'agent_output' : 'user_input',
+      }, 202));
       const id = string(result.job_id);
-      if (!id.trim()) throw contractError();
+      if (!id.trim() || choice(result.status, ['queued']) !== 'queued' || string(result.poll_url) !== `/api/v1/jobs/${id}`) throw contractError();
       return { job_id: id };
     },
-    async getJob(id, signal) { return parseJob(await request(`/jobs/${encodeURIComponent(id)}`, signal)); },
-    async getClaim(id, signal) { return parseClaim(await request(`/claims/${encodeURIComponent(id)}`, signal)); },
+    async getJob(id, signal) { const job = parseJob(await request(`/jobs/${encodeURIComponent(id)}`, signal)); if (job.job_id !== id) throw contractError(); return job; },
+    async getClaim(id, signal) { const claim = parseClaim(await request(`/claims/${encodeURIComponent(id)}`, signal), true); if (claim.claim_id !== id) throw contractError(); return claim; },
     async listReviews(signal) {
       const result = record(await request('/reviews?status=pending', signal));
-      if (!Array.isArray(result.items)) throw contractError();
-      return result.items.map(parseClaim);
+      return array(result.items).map(item => parseClaim(item));
     },
     async review(id, input, signal) {
-      if (!input.rationale.trim()) throw new ApiError('A review rationale is required.');
-      return parseReview(await request(`/claims/${encodeURIComponent(id)}/reviews`, signal, input));
+      if (input.rationale.trim().length < 3) throw new ApiError('A review rationale of at least three characters is required.');
+      const decision = input.correction?.trim() ? 'correct' : ({ supported: 'approve', challenged: 'dispute', uncertain: 'insufficient', more_evidence: 'request_more_evidence' } as const)[input.decision];
+      const result = record(await request(`/claims/${encodeURIComponent(id)}/reviews`, signal, {
+        decision, reviewer_id: 'local-reviewer', rationale: input.rationale,
+        ...(decision === 'correct' ? { corrected_text: input.correction?.trim() } : {}),
+      }));
+      choice(result.overall_action, ['pass', 'annotate', 'hold_for_review']);
+      const claim = parseClaim(result.claim, true);
+      const review = parseReview(result.review);
+      if (claim.claim_id !== id || review.claim_id !== id) throw contractError();
+      return review;
     },
   };
 }

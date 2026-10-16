@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Eye, LockKeyhole, RefreshCw, ShieldCheck, ShieldEllipsis } from 'lucide-react';
 import { useWorkspace } from '../Workspace';
 import { useJob } from '../hooks/useJob';
-import { getRelease, isTerminal } from '../domain/release';
+import { claimRequiresReview, getRelease, isTerminal } from '../domain/release';
 import { Badge, ErrorPanel, FindingBadge, Limitations, PageHeading, ReasonCodes, shortId } from '../components/ui';
 import { CourtPage } from './CourtPage';
 import { JobProgress } from './CasePages';
@@ -11,7 +11,7 @@ export function GuardianPage() { const { jobId } = useParams(); return jobId ? <
 function GuardianCase({ jobId }: { jobId: string }) {
   const { api, mode } = useWorkspace(); const { job, claims, error, loading, refresh } = useJob(api, jobId);
   const release = getRelease(job, claims, error); const permitted = release.output !== null;
-  const unresolved = claims.filter(c => c.human_review ? c.human_review.decision !== 'supported' : c.finding !== 'supported');
+  const unresolved = claims.filter(claimRequiresReview);
   return <div className="page"><Link className="back-link" to={`/jobs/${encodeURIComponent(jobId)}`}><ArrowLeft size={14} />Case record</Link><PageHeading eyebrow={`GUARDIAN / ${shortId(jobId)}`} title="Trust has a release gate." description="A draft stays a draft until the verification service permits it to leave."><button className="button secondary" onClick={refresh}><RefreshCw size={14} />Check release state</button></PageHeading>
     <div className="guardian-flow"><div><Check size={15} />Draft received</div><span /><div className={!permitted ? 'active' : ''}><ShieldEllipsis size={16} />Evidence & review</div><span /><div className={permitted ? 'active' : 'muted'}>{permitted ? <Check size={16} /> : <LockKeyhole size={15} />}Release gate</div></div>
     {error && <ErrorPanel message={error} retry={refresh} />}{!error && (loading || !job || !isTerminal(job.status)) && <JobProgress job={job} />}

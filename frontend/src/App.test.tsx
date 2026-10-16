@@ -48,8 +48,8 @@ it('records review then refetches the job; a successful review alone never relea
   expect(within(screen.getByLabelText('Release gate')).queryByText('HELD ORIGINAL TEXT')).not.toBeInTheDocument();
   await user.click(screen.getByRole('link', { name: 'Review claim' }));
   await screen.findByRole('heading', { name: 'Record a human decision' });
-  await user.click(screen.getByLabelText('Supported'));
-  await user.type(screen.getByLabelText('Rationale'), 'Reviewed the provided records.');
+  await user.click(screen.getByRole('radio', { name: /Supported/ }));
+  await user.type(screen.getByLabelText(/^Rationale/), 'Reviewed the provided records.');
   await user.click(screen.getByRole('button', { name: 'Save review' }));
   await screen.findByRole('status');
   await waitFor(() => expect(api.getJob).toHaveBeenCalledTimes(2));
