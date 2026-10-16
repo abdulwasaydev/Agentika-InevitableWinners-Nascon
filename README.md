@@ -55,6 +55,95 @@ On resuming work in the morning, fetch and safely incorporate this README update
 
 This section records the next demo milestone; it does not assert that the three cases or comparison workflow have already been implemented.
 
+
+## Morning execution prompts: run sequentially and verify each milestone
+
+**Instruction to Codex:** When asked to implement this README, execute the numbered prompts below in order in the same session. These are successive implementation tasks, not prompts for the user to paste separately. Inspect and reuse working code; skip rebuilding a capability only after verifying it meets the acceptance criteria. Do not stop after planning or after the first milestone.
+
+Stay on the current `arman/backend-foundation` branch. Preserve uncommitted work and Wasay's original branch. The user has authorized implementation across frontend and backend. Do not deploy, spend credits, apply remote migrations, or merge to main automatically.
+
+After **every prompt**:
+1. Run the smallest meaningful functional check for that milestone, not merely a compilation check.
+2. Fix failures introduced by the change and rerun the affected checks before moving on.
+3. Record the result in `docs/DEMO_READINESS.md`: milestone, actual command/check, pass/fail/blocked, real versus simulated behavior, and remaining dependency. Never record an unrun check as passed.
+4. Commit coherent working progress without secrets. Push safe checkpoints to the current branch.
+5. Continue to the next prompt automatically. If an external dependency blocks a check, record it, give precise user setup instructions, and continue independent work. Do not claim the blocked functionality works.
+
+Maintain a short task plan and avoid unrelated refactors, new frameworks, duplicate services, speculative features, or repetitive broad test runs. Backend domain tests should target behavior; visual changes need browser inspection rather than tests that merely mirror styling.
+
+### Prompt 1 — Establish the actual baseline
+
+Read this README, AGENTS.md, the existing specification, backend/frontend setup docs, and canonical contract. Inspect Git status and available code before edits. Safely incorporate remote README changes if needed without discarding local changes or switching branches. Report what actually runs, what is simulated, which database is configured, and whether any live model/retrieval integration is usable. Never print secret values.
+
+Run existing relevant checks once to establish the baseline. Start the local services where possible. Create the readiness log and a concise implementation plan for the remaining prompts.
+
+**Gate:** verified baseline commands and blockers are recorded; actual implementation is distinguished from README claims.
+
+### Prompt 2 — Add promise-and-policy input through the real API
+
+Implement the smallest extension needed to submit an advertised promise together with supplied policy documents. Preserve document IDs, title, version/date context where supplied, original text, and clause excerpts. Pasted text is sufficient; do not spend time on PDF parsing or crawling. Keep source documents separate from the claim text so policy clauses are not mistaken for claims made by the advertisement.
+
+Reuse the existing job/persistence pipeline. Apply input/document size limits. If schemas change, update Pydantic models, generated OpenAPI, examples, typed frontend client, and migration artifacts together. Produce remote SQL for manual application only.
+
+**Gate:** submit a promise plus two documents through the API; retrieve the job and prove that the correct documents and claim are linked. Check invalid/oversized input. If persistence cannot be exercised, mark that specific check blocked rather than substituting an undisclosed in-memory success.
+
+### Prompt 3 — Implement evidence-backed comparison
+
+Build or adapt the promise examiner and fine-print examiner to reason over the submitted evidence. They may report no evidence; neither must manufacture an argument. Validate cited IDs and excerpt grounding. Detect material conditions such as cancellation versus refund eligibility, time windows, usage exclusions, and billing-period scope.
+
+Return/display consistent, qualified, conflicting, or insufficient evidence with concise justifications. Define explicit domain fields or documented mappings; do not overload Guardian actions or incorrectly equate qualified with unconditional support. Existing hosted-model adapters may be reused. Deterministic demo adapters must remain visibly labeled, without claiming live inference.
+
+Do not implement decisions keyed to a case title, fixture ID, or expected answer. Source excerpts and conditions must drive the result.
+
+**Gate:** check matching wording, a usage exception, missing refund evidence, and an invalid citation. Change a policy clause and confirm the comparison can change accordingly. Unsupported evidence must not yield a false pass.
+
+### Prompt 4 — Prepare all three reproducible demo cases
+
+Create the three fictional cases defined above as versioned input/source fixtures:
+1. Promise holds up.
+2. Significant exception.
+3. Cannot be resolved.
+
+A case picker should prefill inputs, not inject a final verdict. Run each through the real local API and service pipeline. Make resetting demo-owned records safe, bounded, and explicit; never delete unrelated records. Include expected findings in test expectations, not in runtime answer shortcuts.
+
+**Gate:** all three cases produce the intended distinctions with traceable excerpts. Confirm the exception appears prominently and missing evidence is not described as proof of fraud. Record whether assessments are live or simulated.
+
+### Prompt 5 — Complete real human review and Guardian behavior
+
+Wire review controls to persisted backend decisions with reviewer identity, rationale, timestamps, and history. Preserve the initial machine findings. Recalculate the job after review and let the frontend refetch the backend action.
+
+Keep unresolved material output held in strict mode. A review click alone must not release content; a disputed original claim stays qualified/held according to documented policy. Show original and corrected wording separately. Reviewer overrides must remain visible and must not erase missing evidence. If review endpoints are publicly exposed later, use the existing access controls or require a minimal backend-verified reviewer credential; do not embed a privileged shared secret in frontend assets.
+
+**Gate:** exercise hold → review → recalculation through the real client/API. Reload to confirm review persistence and, when configured, restart the backend to check durability. Test a dispute and an insufficient-evidence decision, not just the favorable path.
+
+### Prompt 6 — Make the interface worthy of a judged demo
+
+Improve the existing interface into a deliberate, polished product centered on **"Does the promise survive the fine print?"** Preserve useful imported work and functionality; do not replace the app with an unrelated landing-page mockup.
+
+Design direction:
+- Use an editorial evidence-desk aesthetic: warm off-white surfaces, deep ink text, restrained teal accents, amber for exceptions, and red only for actual conflicts/errors. Avoid generic purple/blue gradients, glowing blobs, and excessive glass effects.
+- Pair a distinctive readable serif heading face (for example Newsreader or an available equivalent) with a clean sans-serif UI/body face (for example Inter or an available equivalent). Use reliable bundled/self-hosted assets where practical and graceful fallbacks; do not let remote fonts block the demo.
+- Establish a clear type scale, strong headings, comfortable paragraph measure, intentional whitespace, and subtle borders. Avoid making every element an identical rounded card.
+- Give the promise visual priority, then show the exact fine-print exception as a highlighted quotation with document/version context. Make the conclusion understandable before the user reads detailed reasoning.
+- Use a clear evidence comparison layout and a compact step progression: Promise → Evidence → Review → Outcome. This is product navigation, not decorative status pretending processing occurred.
+- Put the three example cases within easy reach. Make loading, reset, retry, and navigation obvious; keep advanced developer details secondary.
+- Use meaningful icons sparingly. Add restrained transitions with reduced-motion support; no fake delay, typewriter effects, or animation that slows the presentation.
+- Distinguish machine finding, human decision, source provenance, and Guardian action using words as well as color.
+- Write concise product copy. Do not expose stack details or raw enum names where plain language is clearer.
+- Support keyboard navigation, visible focus, contrast, readable evidence, and narrow screens.
+
+**Gate:** inspect actual rendered screens in a browser at desktop presentation size and a narrow/mobile size. Check submission, processing, evidence detail, review, and final/held views for clipping, overflow, awkward wrapping, unreadable contrast, broken fonts, and dead controls. Capture local QA screenshots if useful, inspect them, and fix issues. If browser inspection is unavailable, record that limitation; a build alone is not visual verification.
+
+### Prompt 7 — Integrate, rehearse, and prepare the handoff
+
+Run the complete local flow for all three cases using the integrated frontend and backend. Confirm API/client agreement, polling cleanup, refresh behavior, errors, and no silent mock fallback. Run final backend checks, frontend type checks, and production build once after the final changes; fix material failures.
+
+Prepare a concise six-minute walkthrough in `docs/DEMO_SCRIPT.md`, with the three cases, exact clicks, evidence to point out, human review, the product's limits, and a clearly labeled fallback if providers fail. This is a technical demo script, not the prohibited AI-written LinkedIn/Twitter posts.
+
+Update README status and `docs/DEMO_READINESS.md` with verified outcomes. Document exact local start commands, required user configuration, and remaining deployment steps. Prepare Docker packaging if time permits, but do not deploy or spend credits in this sequence.
+
+**Gate:** one full rehearsal succeeds, or specific blocked steps are clearly reported. Final report includes commits, checks, runnable commands, real/simulated capabilities, and unresolved dependencies. Do not call the product deployed or fully verified unless demonstrated.
+
 ## Agreed architecture and stack
 
 | Layer | Decision |
