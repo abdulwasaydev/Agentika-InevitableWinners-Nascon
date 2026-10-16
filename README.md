@@ -6,6 +6,55 @@ The two product interfaces share one verification engine:
 - **Claim Court:** submit text and inspect claim-level findings and evidence.
 - **AI Output Guardian:** intercept an AI response and hold uncertain output until backend policy permits release.
 
+
+## Primary MVP: promises versus fine print
+
+**Pitch: Veritas checks whether a company's promises survive its own fine print — before you subscribe.**
+
+The audience is someone considering a subscription who does not have time to compare marketing claims with cancellation and refund policies. The main demo compares a specific advertised promise against supplied policy documents and exposes matching clauses, material exceptions, conflicts, and missing evidence. This is the selected product focus for demo preparation; the general verification engine and Guardian remain underneath it.
+
+A summary describes each document. This workflow compares documents: what was promised, which clauses support it, which conditions narrow it, and what the user should clarify before paying.
+
+### Bounded workflow
+
+1. Supply one advertised promise and the relevant policy text. Pasted documents are sufficient for the MVP; document upload is optional if already supported.
+2. Extract the promise and its material conditions, preserving exact wording.
+3. The promise examiner identifies supporting passages; the fine-print examiner searches for exclusions, exceptions, scope differences, and conflicting passages.
+4. Validate evidence references and exact excerpts, then present both positions side by side.
+5. Display a document-comparison result: **consistent**, **qualified**, **conflicting**, or **insufficient evidence**.
+6. A human inspects the evidence and records a decision with rationale. Preserve the original machine finding and review history.
+
+These comparison labels are a planned domain presentation, not a claim that new API enums already exist. Inspect existing schemas and document any explicit mapping to current claim statuses. Keep claim findings distinct from Guardian release actions. A qualified promise must not be presented as unconditionally supported.
+
+Neither examiner must invent an argument for its assigned side. No relevant passage is a valid finding. Use bounded supplied evidence; do not imply an exhaustive internet search.
+
+### Morning demo preparation: three cases
+
+Prepare three clearly labeled fictional subscription cases, each with an advertisement and versioned policy documents containing exact, inspectable clauses.
+
+| Case | Example promise and policy | Expected demonstration |
+| --- | --- | --- |
+| Promise holds up | Advertisement: "Cancel anytime; access continues until the end of your paid month." Policy explicitly permits cancellation at any time, stops the next renewal, and preserves access through the paid period. | **Consistent within the supplied documents.** Show matching excerpts and a reasoned human review. Do not infer a refund promise. |
+| Significant exception | Advertisement: "Full refund within 30 days." Policy allows a refund only when the service has never been used. | **Qualified or conflicting**, depending on the precise wording. Surface the unused-service restriction prominently and explain why the unconditional promise is not established. Human review must not erase the exception. |
+| Cannot be resolved | Advertisement: "Cancel anytime and receive a refund." Supplied policy explains how to cancel but says nothing about refund eligibility. | **Insufficient evidence.** Distinguish cancellation from refund entitlement, show the missing information, and suggest asking for the refund policy. Absence of evidence is not proof of deception. |
+
+Run these cases through actual backend services, persisted evidence and review records, and the integrated frontend. Seed inputs and source documents, not hard-coded verdict buttons. If assessments are deterministic fixtures, label them as simulated; distinguish those from actual model calls. Do not present fictional documents as real company policies or invent source URLs.
+
+For each case, show:
+- Original promise and the documents examined, including document IDs/version context.
+- Exact supporting and qualifying/conflicting passages.
+- Machine finding, concise explanation, and unresolved questions.
+- Human decision and persisted rationale.
+- Guardian behavior where applicable: unresolved material claims stay held; review submission alone is not release approval.
+
+### Scope and preparation instructions
+
+This checks consistency with the supplied written policies. It does **not** establish whether a company follows its policies in practice, whether a clause is legally enforceable, or whether documents omitted from the review change the result. Avoid legal verdicts and claims of guaranteed truth.
+
+On resuming work in the morning, fetch and safely incorporate this README update without discarding local changes. Inspect the current implementation first, reuse the existing engine/UI, implement the smallest missing comparison-input and evidence-display pieces, and rehearse the three cases. Prioritize a coherent end-to-end demo and the required live deployment over new generic features. Report any missing configuration and which behavior is real versus simulated.
+
+This section records the next demo milestone; it does not assert that the three cases or comparison workflow have already been implemented.
+
 ## Agreed architecture and stack
 
 | Layer | Decision |
