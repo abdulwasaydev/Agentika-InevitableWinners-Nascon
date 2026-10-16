@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.pnpm-store/
+.vite/
+*.local
+test-results/
+coverage/
