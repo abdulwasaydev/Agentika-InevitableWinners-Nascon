@@ -128,6 +128,36 @@ CREATE TABLE audit_events (
 
 CREATE INDEX ix_audit_events_entity_id ON audit_events (entity_id);
 
+ALTER TABLE alembic_version ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE verification_jobs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE claims ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE evidence ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE agent_assessments ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE human_reviews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE claim_dependencies ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL ON TABLE alembic_version, verification_jobs, claims, evidence, agent_assessments, human_reviews, claim_dependencies, audit_events FROM anon;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        REVOKE ALL ON TABLE alembic_version, verification_jobs, claims, evidence, agent_assessments, human_reviews, claim_dependencies, audit_events FROM authenticated;
+    END IF;
+END $$;
+
 INSERT INTO alembic_version (version_num) VALUES ('0001_initial') RETURNING alembic_version.version_num;
 
 COMMIT;

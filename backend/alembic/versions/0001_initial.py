@@ -112,6 +112,26 @@ def upgrade() -> None:
     )
     op.create_index("ix_audit_events_entity_id", "audit_events", ["entity_id"])
 
+    # Supabase can expose public-schema tables through its Data API. Veritas
+    # connects as the database owner from FastAPI; browser roles need no access.
+    private_tables = (
+        "alembic_version", "verification_jobs", "claims", "evidence",
+        "agent_assessments", "human_reviews", "claim_dependencies", "audit_events",
+    )
+    for table in private_tables:
+        op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
+    table_list = ", ".join(private_tables)
+    for role in ("anon", "authenticated"):
+        # A plain local PostgreSQL instance may not have Supabase's API roles.
+        op.execute(f"""
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN
+        REVOKE ALL ON TABLE {table_list} FROM {role};
+    END IF;
+END $$
+""")
+
 
 def downgrade() -> None:
     op.drop_table("audit_events")

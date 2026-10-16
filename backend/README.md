@@ -16,7 +16,7 @@ Review [the initial migration](alembic/versions/0001_initial.py) and [its genera
 .\.venv\Scripts\python backend\scripts\export_sql.py
 ```
 
-Apply the reviewed SQL **manually** to the separate database. The API checks the schema and Alembic revision; it returns 503 until the database is ready. No command here applies a remote migration or creates cloud resources.
+Apply the reviewed SQL **manually** to a fresh, separate database. It enables row-level security on the Veritas tables and revokes access from Supabase's `anon` and `authenticated` roles when they exist; only the backend connects using the database password. The API checks the schema and Alembic revision; it returns 503 until the database is ready. No command here applies a remote migration or creates cloud resources.
 
 Start the local API:
 
