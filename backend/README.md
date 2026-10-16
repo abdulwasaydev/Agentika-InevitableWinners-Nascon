@@ -27,6 +27,8 @@ cd backend
 
 Open `http://localhost:8000/docs` for the live API reference. From another PowerShell at the repository root, submit and poll a synthetic example:
 
+The API accepts browser requests from `http://localhost:5173` and `http://127.0.0.1:5173` by default. Set `FRONTEND_ORIGINS` in `backend/.env` to a comma-separated list if the frontend uses another local origin. Only `GET` and `POST` API methods are allowed cross-origin.
+
 ```powershell
 $body = Get-Content contracts\examples\verify-request.json -Raw
 $accepted = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/v1/verify -ContentType application/json -Body $body
@@ -34,6 +36,7 @@ Invoke-RestMethod -Uri "http://localhost:8000$($accepted.poll_url)"
 ```
 
 Poll until `completed`, `failed`, or `interrupted`. Use the claim and review endpoints in [the contract guide](../contracts/README.md). A restart marks previously running jobs `interrupted`; queued jobs remain queued for the single worker. Strict mode holds unresolved material claims even after a review that records a dispute or insufficient evidence.
+Reviewing an ancestor claim also returns every downstream claim to `pending_review` and recalculates each affected Guardian job; descendants never become supported automatically.
 
 For optional live calls, set `DEMO_MODE=false`, `BRAVE_SEARCH_API_KEY`, `LLM_API_URL`, `LLM_API_KEY`, and `LLM_MODEL` in `backend/.env`. This sends submitted text to those external services. The search adapter uses [Brave Web Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started), and the LLM adapter expects an [OpenAI-compatible Chat Completions JSON response](https://platform.openai.com/docs/api-reference/chat). It makes at most one search query and two role calls per claim, with bounded timeouts. Search descriptions are **unverified snippets**, not fetched page text; they cannot alone yield `pass`.
 

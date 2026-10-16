@@ -33,3 +33,14 @@ def test_no_database_does_not_silently_use_memory(monkeypatch):
         response = client.post("/api/v1/verify", json={"text": "A claim."})
         assert response.status_code == 503
         assert response.json()["code"] == "DATABASE_UNAVAILABLE"
+
+
+def test_local_frontend_preflight_is_explicitly_allowed():
+    with TestClient(app) as client:
+        response = client.options("/api/v1/verify", headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        })
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == "http://localhost:5173"

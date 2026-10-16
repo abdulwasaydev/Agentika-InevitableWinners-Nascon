@@ -2,10 +2,12 @@
 
 import asyncio
 import os
+from collections import deque
 from contextlib import asynccontextmanager
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Query, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, update
 
@@ -85,6 +87,14 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(title="Veritas API", version="0.1.0", description="Evidence-backed AI claim verification with human review", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in os.getenv(
+        "FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",") if origin.strip()],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 @app.exception_handler(AppError)
@@ -108,13 +118,31 @@ def _recalculate_job(session, job: VerificationJob) -> None:
     job.updated_at = utcnow()
 
 
-def _reevaluate_direct_children(session, parent_id: UUID) -> None:
-    children = list(session.scalars(
-        select(Claim).join(ClaimDependency, ClaimDependency.child_claim_id == Claim.id)
-        .where(ClaimDependency.parent_claim_id == parent_id)
-    ))
+def _reevaluate_descendants(session, parent_id: UUID) -> None:
+    # A reviewed ancestor can change the release decision several jobs downstream.
+    # Every descendant needs a fresh decision; inherited support is never automatic.
+    pending = deque([parent_id])
+    visited = {parent_id}
     affected_jobs = set()
-    for child in children:
+    descendants = []
+    while pending:
+        current_parent_id = pending.popleft()
+        children = list(session.scalars(
+            select(Claim).join(ClaimDependency, ClaimDependency.child_claim_id == Claim.id)
+            .where(ClaimDependency.parent_claim_id == current_parent_id)
+        ))
+        for child in children:
+            if child.id in visited:
+                continue
+            visited.add(child.id)
+            pending.append(child.id)
+            descendants.append((child, current_parent_id))
+    for child, _ in descendants:
+        child.effective_status = "pending_review"
+        child.needs_review = True
+        affected_jobs.add(child.job_id)
+    session.flush()
+    for child, direct_parent_id in descendants:
         parent_ids = list(session.scalars(select(ClaimDependency.parent_claim_id).where(ClaimDependency.child_claim_id == child.id)))
         parents = list(session.scalars(select(Claim).where(Claim.id.in_(parent_ids))))
         reasons = list(child.reason_codes)
@@ -122,20 +150,15 @@ def _reevaluate_direct_children(session, parent_id: UUID) -> None:
             if "UNRESOLVED_PARENT" not in reasons:
                 reasons.append("UNRESOLVED_PARENT")
             reasons = [code for code in reasons if code != "PARENT_RESOLVED_RECHECK_REQUIRED"]
-        elif "UNRESOLVED_PARENT" in reasons:
+        else:
             reasons = [code for code in reasons if code != "UNRESOLVED_PARENT"]
             if "PARENT_RESOLVED_RECHECK_REQUIRED" not in reasons:
                 reasons.append("PARENT_RESOLVED_RECHECK_REQUIRED")
-        else:
-            continue
         child.reason_codes = reasons
-        child.effective_status = "pending_review"
-        child.needs_review = True
-        affected_jobs.add(child.job_id)
         session.add(AuditEvent(
             id=uuid4(), entity_type="claim", entity_id=child.id,
             action="lineage_reevaluated", actor="policy",
-            metadata_json={"parent_claim_id": str(parent_id), "status": "pending_review"},
+            metadata_json={"parent_claim_id": str(direct_parent_id), "status": "pending_review"},
         ))
     for job_id in affected_jobs:
         child_job = session.get(VerificationJob, job_id, with_for_update=True)
@@ -232,7 +255,7 @@ def submit_review(claim_id: UUID, payload: ReviewRequest, request: Request) -> R
         ))
         session.flush()
         _recalculate_job(session, job)
-        _reevaluate_direct_children(session, claim.id)
+        _reevaluate_descendants(session, claim.id)
         session.commit()
         session.expire(claim, ["reviews"])
         parents = list(session.scalars(select(ClaimDependency.parent_claim_id).where(ClaimDependency.child_claim_id == claim_id)))
