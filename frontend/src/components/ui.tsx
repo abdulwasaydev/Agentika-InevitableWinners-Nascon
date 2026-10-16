@@ -1,0 +1,25 @@
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, ArrowRight, ArrowUpRight, Check, FileText, LoaderCircle, RefreshCw } from 'lucide-react';
+import type { Claim, Evidence, Finding } from '../api/types';
+import { safeSourceUrl } from '../domain/release';
+import { useWorkspace } from '../Workspace';
+export const findingLabels: Record<Finding, string> = { supported: 'Supported', challenged: 'Disputed', insufficient_evidence: 'Insufficient evidence', not_checkable: 'Not checkable' };
+export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: string }) { return <span className={`badge ${tone}`}><span className="badge-dot" />{children}</span>; }
+export function FindingBadge({ finding }: { finding: Finding }) { return <Badge tone={finding === 'supported' ? 'success' : finding === 'challenged' ? 'danger' : 'warning'}>{findingLabels[finding]}</Badge>; }
+export function PageHeading({ eyebrow, title, description, children }: { eyebrow: string; title: string; description?: string; children?: ReactNode }) { return <div className="page-heading"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{description && <p>{description}</p>}</div>{children}</div>; }
+export function ErrorPanel({ message, retry }: { message: string; retry?: () => void }) { return <div className="error-panel" role="alert"><AlertTriangle size={21} /><div><strong>We couldn’t complete that request.</strong><p>{message}</p>{retry && <button className="text-button" onClick={retry}><RefreshCw size={14} />Try again</button>}</div></div>; }
+export function Loading({ text = 'Loading the evidence workspace…' }: { text?: string }) { return <div className="loading-panel" role="status"><LoaderCircle className="spin" size={22} /><span>{text}</span></div>; }
+export function EmptyState({ title, description, children }: { title: string; description: string; children?: ReactNode }) { return <div className="empty-state"><div className="empty-icon"><FileText size={26} /></div><h2>{title}</h2><p>{description}</p>{children}</div>; }
+export function ReasonCodes({ codes }: { codes: string[] }) { return <div className="reason-codes">{codes.map(code => <code key={code}>{code}</code>)}</div>; }
+export function Limitations({ items }: { items: string[] }) { return items.length > 0 ? <div className="limitations"><AlertTriangle size={16} /><div><strong>Scope & limitations</strong><ul>{items.map((item, i) => <li key={i}>{item}</li>)}</ul></div></div> : null; }
+export function EvidenceList({ evidence }: { evidence: Evidence[] }) {
+  const { mode } = useWorkspace();
+  return <div className="evidence-list">{evidence.length === 0 ? <p className="muted">No evidence was returned for this claim.</p> : evidence.map((item, i) => {
+    const url = safeSourceUrl(item.url);
+    return <article className="evidence-card" key={item.evidence_id}><div className="evidence-top"><span className="evidence-number">SOURCE {String(i + 1).padStart(2, '0')}</span><Badge tone={item.stance === 'supporting' ? 'success' : item.stance === 'challenging' ? 'danger' : 'neutral'}>{item.stance}</Badge></div><h3>{item.title}</h3><blockquote>{item.excerpt}</blockquote><div className="evidence-bottom">{mode === 'demo' && item.document_id ? <Link to={`/documents/${encodeURIComponent(item.document_id)}`}>Synthetic document · {item.document_id}<ArrowUpRight size={14} /></Link> : url ? <a href={url} target="_blank" rel="noopener noreferrer">Open source<ArrowUpRight size={14} /></a> : <span className="muted">Source URL unavailable</span>}<span>{item.evidence_id.split('-').at(-1)}</span></div></article>;
+  })}</div>;
+}
+export function ClaimCards({ claims }: { claims: Claim[] }) { return <div className="claim-list">{claims.map((claim, i) => <article className="claim-card" key={claim.claim_id}><span className="claim-number">{String(i + 1).padStart(2, '0')}</span><div className="claim-body"><div className="claim-meta"><FindingBadge finding={claim.finding} /><span className={`review-label ${claim.human_review ? 'reviewed' : ''}`}>{claim.human_review ? <><Check size={12} /> Human reviewed · {claim.human_review.decision}</> : 'Provisional machine finding'}</span></div><h3>{claim.text}</h3><p>{claim.explanation}</p><div className="claim-card-bottom"><span><FileText size={13} />{claim.evidence.length} evidence {claim.evidence.length === 1 ? 'record' : 'records'}</span><Link to={`/claims/${encodeURIComponent(claim.claim_id)}`} aria-label={`Inspect claim ${i + 1}`}>Inspect evidence<ArrowRight size={15} /></Link></div></div></article>)}</div>; }
+export function shortId(id: string) { return id.startsWith('demo-') ? `SYN-${id.slice(5, 13).toUpperCase()}` : id.length > 20 ? `${id.slice(0, 17)}…` : id; }
+export function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.valueOf()) ? 'Time unavailable' : date.toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Karachi' }); }

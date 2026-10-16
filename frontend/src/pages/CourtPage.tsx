@@ -1,0 +1,40 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, ArrowUpRight, Check, CornerDownLeft, FileText, LoaderCircle, ScanText, Scale, ShieldCheck, Sparkles } from 'lucide-react';
+import { useWorkspace } from '../Workspace';
+import { DEMO_TEXT } from '../api/demo';
+import type { Scenario } from '../api/types';
+import { Badge, ErrorPanel, formatDate, shortId } from '../components/ui';
+
+export function CourtPage({ guardian = false }: { guardian?: boolean }) {
+  const { api, mode, recent, remember } = useWorkspace();
+  const navigate = useNavigate();
+  const [text, setText] = useState('');
+  const [scenario, setScenario] = useState<Scenario>('review');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
+  async function submit(event: FormEvent) {
+    event.preventDefault(); if (busy || !text.trim()) return;
+    controller.current?.abort(); const request = new AbortController(); controller.current = request;
+    setBusy(true); setError(null);
+    try {
+      const result = await api.submit({ text, ...(mode === 'demo' ? { scenario } : {}) }, request.signal);
+      if (request.signal.aborted) return;
+      remember(result.job_id, text); navigate(`/${guardian ? 'guardian' : 'jobs'}/${encodeURIComponent(result.job_id)}`);
+    } catch (failure) { if (!request.signal.aborted) setError(failure instanceof Error ? failure.message : 'Submission failed.'); }
+    finally { if (!request.signal.aborted) setBusy(false); }
+  }
+  return <div className="page court-page">
+    <div className="court-hero"><div><div className="eyebrow"><span className="tiny-line" />{guardian ? 'GUARDIAN / CONTROLLED RELEASE' : 'CLAIM COURT / NEW CASE'}</div><h1>{guardian ? <>A pause before<br /><em>the publish.</em></> : <>A little less certainty.<br /><em>A lot more evidence.</em></>}</h1><p>{guardian ? 'Watch the release gate hold a draft, route uncertainty to a human, and obey the latest verification decision.' : 'Put a passage on the record. Trace its claims to evidence, see what holds up, and give uncertainty a human hearing.'}</p></div><div className="hero-seal"><Scale size={39} strokeWidth={1.25} /><span>QUESTION.<br />VERIFY.<br />UNDERSTAND.</span><span className="seal-corner">↗</span></div></div>
+    <div className="court-grid"><section className="panel submission-panel"><div className="panel-header"><div><span className="section-index">01</span><h2>{guardian ? 'Prepare a guarded draft' : 'Put a claim on the record'}</h2></div><Badge tone="neutral">{mode === 'demo' ? 'Synthetic case' : 'Text submission'}</Badge></div>
+      <form onSubmit={submit}><div className="editor-label"><label htmlFor="claim-text">Text to verify</label>{mode === 'demo' && <button type="button" className="text-button example-button" onClick={() => setText(DEMO_TEXT)}><Sparkles size={13} />Use synthetic example</button>}</div><textarea id="claim-text" value={text} onChange={event => setText(event.target.value)} placeholder={'Paste an AI-generated answer, a paragraph, or a factual claim.\n\nWe’ll separate what can be checked from what needs a closer look.'} maxLength={20000} required aria-describedby="text-help" /><div className="editor-footer"><span id="text-help"><FileText size={13} />Original wording stays intact.</span><span>{text.length.toLocaleString()} / 20,000</span></div>
+      {mode === 'demo' && <div className="scenario-field"><label htmlFor="scenario">Synthetic scenario</label><select id="scenario" value={scenario} onChange={event => setScenario(event.target.value as Scenario)}><option value="review">Mixed findings · pending review</option><option value="pass">Supported · release permitted</option><option value="disputed">Disputed · hold for review</option><option value="insufficient">Insufficient evidence · hold</option><option value="annotate">Supported with caveats · annotate</option><option value="failed">Verification failed</option><option value="interrupted">Verification interrupted</option><option value="provider_unavailable">Provider unavailable</option></select></div>}
+      {error && <ErrorPanel message={error} />}<div className="submit-row"><p>{mode === 'demo' ? 'A local simulation. Your text is never sent for verification.' : 'Submitted to your local FastAPI backend for verification.'}</p><button type="submit" className="button primary" disabled={!text.trim() || busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <ScanText size={17} />}{busy ? 'Opening case…' : 'Verify claims'}{!busy && <ArrowRight size={17} />}</button></div></form></section>
+      <aside className="process-panel"><div className="eyebrow">THE STANDARD OF PROOF</div><h2>Every verdict<br />has a paper trail.</h2><p className="process-intro">An answer is a starting point. Evidence is what moves it forward.</p><ol className="process-steps"><li><span>1</span><div><strong>Separate the claims</strong><p>Turn a passage into statements that can be examined.</p></div></li><li><span>2</span><div><strong>Follow the evidence</strong><p>Read supporting and challenging records, with their limits.</p></div></li><li><span>3</span><div><strong>Keep a human in the loop</strong><p>Route unresolved claims to review before release.</p></div></li></ol><div className="process-footnote"><ShieldCheck size={17} /><span>Provisional findings are always labeled.</span></div></aside></div>
+    <div className="docket-heading"><div><div className="eyebrow">YOUR WORKSPACE</div><h2>Recent cases <span className="count-pill">{recent.length}</span></h2></div><span className="muted">{mode === 'demo' ? 'Saved in this browser' : 'Submitted from this browser'}</span></div>
+    {recent.length ? <div className="docket-list">{recent.slice(0, 6).map(item => <Link className="docket-row" to={`/${guardian ? 'guardian' : 'jobs'}/${encodeURIComponent(item.id)}`} key={item.id}><div className="docket-icon"><FileText size={19} /></div><div><span className="mono">{shortId(item.id)}</span><h3>{item.text}</h3></div><time>{formatDate(item.created)}</time><ArrowUpRight size={18} /></Link>)}</div> : <div className="docket-empty"><div className="docket-empty-icon"><CornerDownLeft size={22} /></div><div><h3>Your first case starts here.</h3><p>Submit a passage above to start building an evidence trail.</p></div><span className="empty-docket-lines"><Check size={18} /><span /></span></div>}
+    <div className="court-bottom-note"><span className="asterisk">✳</span><p>Supported is a finding.<br /><strong>Trust is a process.</strong></p><Link to="/about">How this workspace works <ArrowUpRight size={15} /></Link></div>
+  </div>;
+}
