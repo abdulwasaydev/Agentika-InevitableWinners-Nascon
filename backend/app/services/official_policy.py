@@ -1,7 +1,7 @@
 """Review a downloaded official policy with two citation-bound LLM roles.
 
-The full document is downloaded once by an operator. Retrieval selects passages
-for the model; the model can cite only exact substrings of those passages.
+The full document is downloaded once by an operator, or supplied by the user.
+The model selects quote IDs; the server restores the exact source substrings.
 """
 
 import hashlib
@@ -138,14 +138,30 @@ def _assess(role: str, claim: str, passages: list[Passage], snapshot: PolicySnap
     positive = role == "support"
     position = "supports" if positive else "challenges"
     empty = "no_support" if positive else "no_challenge"
+    quotes: dict[str, tuple[Passage, str]] = {}
+    supplied = []
+    for passage in passages:
+        options = []
+        # Overlap preserves context across chunk boundaries. Never ask the model
+        # to reproduce markdown, Unicode, or punctuation character for character.
+        for offset in range(0, len(passage.text), 640):
+            quote = passage.text[offset:offset + 800].strip()
+            if len(quote) < 12:
+                continue
+            quote_id = f"{passage.id}:q{len(options) + 1}"
+            quotes[quote_id] = (passage, quote)
+            options.append({"id": quote_id, "text": quote})
+        supplied.append({**vars(passage), "quote_options": options})
     with httpx.Client(timeout=30) as client:
         result = _chat_json(
             f"You are the {role} analyst reading policy text attributed to GitHub. Look only for passages that directly {position} the precise claim. "
             "Account for qualifiers, scope, and exceptions. Do not treat missing text as proof. "
             f"Return JSON with position ({position} or {empty}), reasoning_summary (1-3 concise sentences), "
-            "citations (0-2 objects with passage_id and an exact verbatim quote copied from that passage), and limitations. "
+            'citations (0-2 objects of the form {"quote_id":"p1:q1"}), and limitations. '
+            "Select only IDs from the supplied quote_options. Do not write or paraphrase quote text. "
+            "Use the full passage to check scope and qualifications before selecting a quote. "
             "If no passage directly establishes your position, return no citations and the empty position.",
-            {"claim": claim, "passages": [vars(item) for item in passages]},
+            {"claim": claim, "passages": supplied},
             client=client, max_tokens=1400,
         )
     raw = result.get("citations")
@@ -163,16 +179,15 @@ def _assess(role: str, claim: str, passages: list[Passage], snapshot: PolicySnap
         raw = []
         result["reasoning_summary"] = "The analyst did not establish this position; its inconsistent citations were discarded."
         result["limitations"] = "No cited passage establishes this position."
-    by_id = {item.id: item for item in passages}
     evidence: list[EvidenceCandidate] = []
     citations: list[Citation] = []
     for item in raw:
-        if not isinstance(item, dict) or not isinstance(item.get("passage_id"), str) or not isinstance(item.get("quote"), str):
-            raise ProviderFailure("Invalid policy citation")
-        passage = by_id.get(item["passage_id"])
-        quote = item["quote"].strip()
-        if passage is None or len(quote) < 12 or len(quote) > 800 or quote not in passage.text:
-            raise ProviderFailure("Policy quote did not match the downloaded document")
+        if not isinstance(item, dict) or set(item) != {"quote_id"} or not isinstance(item["quote_id"], str):
+            raise ProviderFailure("Invalid policy citation", category="citation_validation", http_status=200)
+        selected = quotes.get(item["quote_id"])
+        if selected is None:
+            raise ProviderFailure("Invalid policy citation ID", category="citation_validation", http_status=200)
+        passage, quote = selected
         candidate = EvidenceCandidate(
             id=uuid4(), stance="support" if positive else "challenge",
             source_type="official_privacy_policy" if verified_source else "user_supplied_privacy_policy",

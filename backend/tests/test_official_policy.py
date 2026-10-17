@@ -39,7 +39,7 @@ def test_two_roles_cite_exact_policy_and_keep_release_pending(monkeypatch):
             return {"position": "no_support", "reasoning_summary": "No direct support.", "citations": [], "limitations": "Only ranked passages were read."}
         passage = next(item for item in payload["passages"] if QUOTE in item["text"])
         return {"position": "challenges", "reasoning_summary": "The policy permits model training.",
-                "citations": [{"passage_id": passage["id"], "quote": QUOTE}], "limitations": "Policy text does not prove actual practice."}
+                "citations": [{"quote_id": passage["quote_options"][0]["id"]}], "limitations": "Policy text does not prove actual practice."}
 
     monkeypatch.setattr(official_policy, "_chat_json", fake_chat)
     result = official_policy.compare_official_policy("GitHub never uses personal data to train AI models.")
@@ -64,7 +64,7 @@ def test_invalid_model_quote_cannot_become_evidence(monkeypatch):
         return {"position": "no_challenge", "reasoning_summary": "No passage.", "citations": []}
 
     monkeypatch.setattr(official_policy, "_chat_json", fake_chat)
-    with pytest.raises(ProviderFailure, match="did not match"):
+    with pytest.raises(ProviderFailure, match="Invalid policy citation"):
         official_policy.compare_official_policy("GitHub never uses personal data to train AI models.")
 
 
@@ -90,7 +90,7 @@ def test_citations_for_declined_position_are_discarded(monkeypatch):
         if "support analyst" in instruction:
             passage = next(item for item in payload["passages"] if QUOTE in item["text"])
             return {"position": "no_support", "reasoning_summary": "Inconsistent model response.",
-                    "citations": [{"passage_id": passage["id"], "quote": QUOTE}]}
+                    "citations": [{"quote_id": passage["quote_options"][0]["id"]}]}
         return {"position": "no_challenge", "reasoning_summary": "No passage.", "citations": []}
 
     monkeypatch.setattr(official_policy, "_chat_json", fake_chat)
@@ -126,7 +126,7 @@ def test_pasted_policy_uses_saved_full_text_and_unverified_provenance(monkeypatc
         if "support analyst" in instruction:
             passage = next(item for item in payload["passages"] if QUOTE in item["text"])
             return {"position": "supports", "reasoning_summary": "The pasted policy lists model training.",
-                    "citations": [{"passage_id": passage["id"], "quote": QUOTE}]}
+                    "citations": [{"quote_id": passage["quote_options"][0]["id"]}]}
         return {"position": "no_challenge", "reasoning_summary": "No contrary passage.", "citations": []}
 
     monkeypatch.setattr(official_policy, "_chat_json", fake_chat)
@@ -167,7 +167,7 @@ def test_official_policy_api_review_and_guardian_gate(monkeypatch):
         if "support analyst" in instruction:
             passage = next(item for item in payload["passages"] if QUOTE in item["text"])
             return {"position": "supports", "reasoning_summary": "The source says model training is a purpose.",
-                    "citations": [{"passage_id": passage["id"], "quote": QUOTE}], "limitations": "Written policy only."}
+                    "citations": [{"quote_id": passage["quote_options"][0]["id"]}], "limitations": "Written policy only."}
         return {"position": "no_challenge", "reasoning_summary": "No contrary passage in the ranked selection.",
                 "citations": [], "limitations": "Retrieval can miss passages."}
 
@@ -197,4 +197,73 @@ def test_official_policy_api_review_and_guardian_gate(monkeypatch):
         })
         assert approved.status_code == 200
         assert approved.json()["overall_action"] == "pass"
+    engine.dispose()
+
+
+@pytest.mark.parametrize("citation", [
+    {"quote_id": "p999:q1"},
+    {"quote_id": 1},
+    {"passage_id": "p1", "quote": QUOTE},
+])
+def test_unknown_or_legacy_citation_cannot_become_evidence(monkeypatch, citation):
+    monkeypatch.setattr(official_policy, "_chat_json", lambda *args, **kwargs: {
+        "position": "supports", "reasoning_summary": "Untrusted citation.", "citations": [citation],
+    })
+    with pytest.raises(ProviderFailure, match="Invalid policy citation"):
+        official_policy.compare_policy_text("We train models.", _snapshot(), verified_source=False)
+
+
+def test_selected_quote_preserves_markdown_and_unicode_exactly(monkeypatch):
+    text = "We use **Personal Data** for [training](https://example.invalid) — subject to consent. "
+    source = text * 20
+    snapshot = official_policy.PolicySnapshot(source, "b" * 64, datetime.now(timezone.utc))
+    selected = []
+
+    def fake_chat(instruction, payload, **kwargs):
+        if "challenge analyst" in instruction:
+            return {"position": "no_challenge", "reasoning_summary": "No challenge.", "citations": []}
+        for passage in payload["passages"]:
+            for option in passage["quote_options"]:
+                assert 12 <= len(option["text"]) <= 800
+                assert option["text"] in passage["text"]
+        option = payload["passages"][0]["quote_options"][0]
+        selected.append(option["text"])
+        return {"position": "supports", "reasoning_summary": "Source permits training.",
+                "citations": [{"quote_id": option["id"]}]}
+
+    monkeypatch.setattr(official_policy, "_chat_json", fake_chat)
+    result = official_policy.compare_policy_text("We use personal data for training.", snapshot, verified_source=False)
+    assert result.evidence[0].excerpt == source[:800].strip()
+    assert result.evidence[0].excerpt == selected[0]
+    assert "**Personal Data**" in result.evidence[0].excerpt
+    assert result.evidence[0].validity_status == "valid"
+    assert result.finding.effective_status == "pending_review"
+
+
+def test_failed_policy_job_logs_only_safe_diagnostics(monkeypatch, caplog):
+    from app.models import VerificationJob
+    from uuid import uuid4
+    engine = create_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    job_id = uuid4()
+    with factory() as session:
+        session.add(VerificationJob(id=job_id, mode="claim_court", policy="strict",
+                    input_text="private user text", origin=official_policy.POLICY_ORIGIN, status="queued"))
+        session.commit()
+
+    def fail(_claim):
+        raise ProviderFailure("secret-key and private user text", category="http_error", http_status=429)
+
+    monkeypatch.setattr("app.services.pipeline.compare_official_policy", fail)
+    process_job(factory, job_id)
+    with factory() as session:
+        job = session.get(VerificationJob, job_id)
+        assert job.status == "failed"
+        assert job.error_code == "PROVIDER_ERROR"
+        assert job.overall_action == "hold_for_review"
+        assert job.claims == []
+    assert str(job_id) in caplog.text
+    assert "http_error" in caplog.text and "429" in caplog.text
+    assert "secret-key" not in caplog.text and "private user text" not in caplog.text
     engine.dispose()

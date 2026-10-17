@@ -21,7 +21,10 @@ GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
 class ProviderFailure(RuntimeError):
-    pass
+    def __init__(self, message: str, *, category: str = "response_validation", http_status: int | None = None):
+        super().__init__(message)
+        self.category = category
+        self.http_status = http_status
 
 
 def _timeout() -> float:
@@ -43,9 +46,10 @@ def _chat_json(instruction: str, payload: dict, *, client: httpx.Client | None =
     key = os.getenv("LLM_API_KEY")
     model = os.getenv("LLM_MODEL")
     if not llm_configured():
-        raise ProviderFailure("LLM provider is not configured")
+        raise ProviderFailure("LLM provider is not configured", category="configuration")
     own = client is None
     client = client or httpx.Client(timeout=_timeout())
+    response_status = None
     try:
         if provider == "gemini":
             generation_config = {
@@ -76,11 +80,13 @@ def _chat_json(instruction: str, payload: dict, *, client: httpx.Client | None =
                     "max_completion_tokens": max_tokens,
                 },
             )
+        response_status = response.status_code
         response.raise_for_status()
         if provider == "gemini":
             candidate = response.json()["candidates"][0]
             if candidate.get("finishReason") == "MAX_TOKENS":
-                raise ProviderFailure("Gemini ended before returning a complete JSON response")
+                raise ProviderFailure("Gemini ended before returning a complete JSON response",
+                                      category="output_limit", http_status=response_status)
             content = "".join(part["text"] for part in candidate["content"]["parts"] if "text" in part)
         else:
             content = response.json()["choices"][0]["message"]["content"]
@@ -88,8 +94,16 @@ def _chat_json(instruction: str, payload: dict, *, client: httpx.Client | None =
         if not isinstance(result, dict):
             raise ValueError("provider output is not an object")
         return result
-    except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as exc:
-        raise ProviderFailure("LLM provider request or response failed") from exc
+    except httpx.HTTPStatusError as exc:
+        # Provider bodies can echo input or credentials. Retain the status only.
+        raise ProviderFailure("LLM provider HTTP request failed", category="http_error",
+                              http_status=exc.response.status_code) from exc
+    except httpx.TimeoutException as exc:
+        raise ProviderFailure("LLM provider request timed out", category="timeout") from exc
+    except httpx.HTTPError as exc:
+        raise ProviderFailure("LLM provider connection failed", category="transport_error") from exc
+    except (KeyError, IndexError, ValueError, TypeError) as exc:
+        raise ProviderFailure("LLM provider response failed validation", http_status=response_status) from exc
     finally:
         if own:
             client.close()

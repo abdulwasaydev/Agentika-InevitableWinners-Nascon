@@ -2,6 +2,7 @@
 
 import os
 import hashlib
+import logging
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -18,6 +19,8 @@ from .official_policy import (
     compare_official_policy, compare_policy_text,
 )
 from .verification import verify_one_claim
+
+logger = logging.getLogger(__name__)
 
 
 def demo_mode() -> bool:
@@ -113,6 +116,12 @@ def process_job(factory: sessionmaker[Session], job_id: UUID, *, max_claims: int
             ))
             session.commit()
     except Exception as exc:
+        if isinstance(exc, ProviderFailure):
+            # Do not log exception bodies, request URLs, keys, prompts, or source
+            # documents. These fields are enough to distinguish HTTP failures
+            # from local response/citation validation without disclosing input.
+            logger.warning("Verification provider failure: job_id=%s category=%s http_status=%s",
+                           job_id, exc.category, exc.http_status)
         with factory() as session:
             job = session.get(VerificationJob, job_id)
             if job is not None:

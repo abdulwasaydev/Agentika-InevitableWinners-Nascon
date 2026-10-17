@@ -99,3 +99,45 @@ def test_gemini_native_json_request_and_failure(monkeypatch):
     with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(429))) as client:
         with pytest.raises(ProviderFailure):
             _chat_json("Assess", {"claim": "example"}, client=client)
+
+
+@pytest.mark.parametrize("status", [401, 403, 404, 429, 500, 503])
+def test_provider_http_failure_retains_status_without_response_secrets(monkeypatch, status):
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("LLM_API_KEY", "private-test-key")
+    monkeypatch.setenv("LLM_MODEL", "test-model")
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(
+        status, json={"error": {"message": "private-test-key echoed private claim text"}},
+    ))) as client:
+        with pytest.raises(ProviderFailure) as caught:
+            _chat_json("Assess", {"claim": "private claim text"}, client=client)
+    assert caught.value.http_status == status
+    assert caught.value.category == "http_error"
+    assert "private-test-key" not in str(caught.value)
+    assert "private claim text" not in str(caught.value)
+
+
+@pytest.mark.parametrize("failure,category,status", [
+    ("timeout", "timeout", None),
+    ("invalid_json", "response_validation", 200),
+    ("output_limit", "output_limit", 200),
+])
+def test_provider_timeout_and_validation_are_distinguishable(monkeypatch, failure, category, status):
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("LLM_API_KEY", "test-key")
+    monkeypatch.setenv("LLM_MODEL", "test-model")
+
+    def respond(request):
+        if failure == "timeout":
+            raise httpx.ReadTimeout("sensitive request details", request=request)
+        return httpx.Response(200, json={"candidates": [{
+            "finishReason": "MAX_TOKENS" if failure == "output_limit" else "STOP",
+            "content": {"parts": [{"text": "not valid JSON"}]},
+        }]})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        with pytest.raises(ProviderFailure) as caught:
+            _chat_json("Assess", {"claim": "example"}, client=client)
+    assert caught.value.category == category
+    assert caught.value.http_status == status
+    assert "sensitive" not in str(caught.value)
