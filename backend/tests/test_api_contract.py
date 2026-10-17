@@ -13,6 +13,7 @@ def test_contract_examples_and_generated_openapi():
     examples = root / "contracts" / "examples"
     VerificationRequest.model_validate_json((examples / "verify-request.json").read_text())
     VerificationRequest.model_validate_json((examples / "promise-request.json").read_text())
+    VerificationRequest.model_validate_json((examples / "github-policy-request.json").read_text())
     JobOut.model_validate_json((examples / "job-completed.json").read_text())
     assert json.loads((root / "contracts" / "openapi.json").read_text()) == app.openapi()
 

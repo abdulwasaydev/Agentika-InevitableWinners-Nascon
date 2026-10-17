@@ -1,0 +1,8 @@
+{
+  "text": "GitHub never uses personal data to train AI models.",
+  "mode": "claim_court",
+  "policy": "strict",
+  "origin": "user_input",
+  "policy_source": "github_privacy",
+  "documents": []
+}

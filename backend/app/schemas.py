@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -60,7 +60,7 @@ class SuppliedDocumentIn(BaseModel):
 
 
 class SuppliedDocumentOut(SuppliedDocumentIn):
-    pass
+    text: Annotated[str, Field(min_length=1, max_length=100000)]
 
 
 class VerificationRequest(BaseModel):
@@ -68,6 +68,8 @@ class VerificationRequest(BaseModel):
     mode: Annotated[str, Field(pattern="^(guardian|claim_court)$")] = "claim_court"
     policy: Annotated[str, Field(pattern="^(strict|balanced)$")] = "strict"
     origin: Annotated[str, Field(min_length=1, max_length=80)] = "user_input"
+    policy_source: Literal["github_privacy"] | None = None
+    policy_text: Annotated[str | None, Field(max_length=100000)] = None
     parent_claim_ids: list[UUID] = Field(default_factory=list, max_length=20)
     documents: list[SuppliedDocumentIn] = Field(default_factory=list, max_length=3)
 
@@ -79,6 +81,13 @@ class VerificationRequest(BaseModel):
             raise ValueError("document IDs must be unique within a submission")
         if sum(len(doc.text) for doc in self.documents) > 24000:
             raise ValueError("combined document text exceeds 24000 characters")
+        if self.policy_source and self.documents:
+            raise ValueError("choose an official policy source or supply documents, not both")
+        if self.policy_text is not None:
+            if self.policy_source != "github_privacy":
+                raise ValueError("policy_text requires github_privacy policy_source")
+            if len(self.policy_text.strip()) < 10000:
+                raise ValueError("paste the full policy document (at least 10000 characters)")
         return self
 
 

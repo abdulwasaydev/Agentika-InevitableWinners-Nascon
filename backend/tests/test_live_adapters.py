@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from app.providers.live import ProviderFailure, live_assess, live_extract, live_retrieve
+from app.providers.live import ProviderFailure, _chat_json, live_assess, live_extract, live_retrieve
 from app.schemas import ClaimStatus
 from app.services.assessment import AssessmentDraft, Citation
 from app.services.extraction import extract_claims
@@ -16,6 +16,7 @@ def _llm_response(payload):
 
 
 def test_live_extraction_checks_exact_source_and_coverage(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "openai_compatible")
     monkeypatch.setenv("LLM_API_URL", "https://example.test/chat/completions")
     monkeypatch.setenv("LLM_API_KEY", "test-key")
     monkeypatch.setenv("LLM_MODEL", "test-model")
@@ -63,6 +64,7 @@ def test_live_assessment_citation_is_validated_and_snippet_does_not_pass(monkeyp
 
 
 def test_llm_provider_failure_does_not_become_support(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "openai_compatible")
     monkeypatch.setenv("LLM_API_URL", "https://example.test/chat/completions")
     monkeypatch.setenv("LLM_API_KEY", "test-key")
     monkeypatch.setenv("LLM_MODEL", "test-model")
@@ -74,3 +76,26 @@ def test_llm_provider_failure_does_not_become_support(monkeypatch):
                 document_id=None, title="Example", excerpt="The test archive opened in 2020.",
                 source_text="The test archive opened in 2020.",
             )], client=client)
+
+
+def test_gemini_native_json_request_and_failure(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("LLM_API_KEY", "test-key")
+    monkeypatch.setenv("LLM_MODEL", "gemini-3.8-flash")
+    monkeypatch.delenv("LLM_API_URL", raising=False)
+
+    def respond(request):
+        assert request.url.path == "/v1beta/models/gemini-3.8-flash:generateContent"
+        assert request.headers["x-goog-api-key"] == "test-key"
+        body = json.loads(request.content)
+        assert body["generationConfig"]["responseMimeType"] == "application/json"
+        assert body["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "low"}
+        assert body["generationConfig"]["maxOutputTokens"] >= 4096
+        assert body["contents"][0]["parts"][0]["text"] == '{"claim": "example"}'
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": '{"position":"supports"}'}]}}]})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        assert _chat_json("Assess", {"claim": "example"}, client=client) == {"position": "supports"}
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(429))) as client:
+        with pytest.raises(ProviderFailure):
+            _chat_json("Assess", {"claim": "example"}, client=client)

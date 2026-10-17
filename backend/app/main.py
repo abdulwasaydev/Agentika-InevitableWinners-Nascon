@@ -20,6 +20,8 @@ from .schemas import (
 )
 from .services.pipeline import process_job
 from .services.policy import PolicyClaim, apply_review, release_action
+from .services.official_policy import POLICY_ORIGIN, PASTED_POLICY_ORIGIN, PolicySourceUnavailable, load_policy
+from .providers.live import llm_configured
 
 
 class AppError(Exception):
@@ -175,6 +177,14 @@ def health(request: Request) -> HealthOut:
 @app.post("/api/v1/verify", status_code=status.HTTP_202_ACCEPTED, response_model=VerifyAccepted, responses={503: {"model": ErrorOut}})
 async def verify(request: VerificationRequest, http_request: Request) -> VerifyAccepted:
     factory = _factory(http_request)
+    if request.policy_source == "github_privacy":
+        if not llm_configured():
+            raise AppError(503, "LLM_NOT_CONFIGURED", "Set LLM_PROVIDER=gemini, LLM_API_KEY and LLM_MODEL in backend/.env, then restart the API")
+        if request.policy_text is None:
+            try:
+                load_policy()
+            except PolicySourceUnavailable as exc:
+                raise AppError(503, "SOURCE_UNAVAILABLE", str(exc)) from exc
     if len(request.text) > int(os.getenv("MAX_INPUT_CHARS", "8000")):
         raise AppError(422, "INPUT_TOO_LONG", "Text exceeds the configured input limit")
     with factory() as session:
@@ -191,12 +201,20 @@ async def verify(request: VerificationRequest, http_request: Request) -> VerifyA
             input_text=request.text, parent_claim_ids=[str(x) for x in request.parent_claim_ids],
             status=JobStatus.queued, created_at=utcnow(), updated_at=utcnow(),
         )
+        if request.policy_source == "github_privacy":
+            job.origin = PASTED_POLICY_ORIGIN if request.policy_text is not None else POLICY_ORIGIN
         session.add(job)
         for document in request.documents:
             session.add(SuppliedDocument(
                 id=uuid4(), job_id=job.id, document_id=document.document_id,
                 title=document.title, version=document.version,
                 effective_date=document.effective_date, text=document.text,
+            ))
+        if request.policy_text is not None:
+            session.add(SuppliedDocument(
+                id=uuid4(), job_id=job.id, document_id="GITHUB-PASTED-PRIVACY",
+                title="User-pasted GitHub privacy statement", version=None,
+                effective_date=None, text=request.policy_text,
             ))
         session.commit()
     http_request.app.state.wake.set()

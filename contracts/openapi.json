@@ -871,7 +871,7 @@
             "title": "Effective Date"
           },
           "text": {
-            "maxLength": 12000,
+            "maxLength": 100000,
             "minLength": 1,
             "title": "Text",
             "type": "string"
@@ -980,6 +980,30 @@
             "pattern": "^(strict|balanced)$",
             "title": "Policy",
             "type": "string"
+          },
+          "policy_source": {
+            "anyOf": [
+              {
+                "const": "github_privacy",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Source"
+          },
+          "policy_text": {
+            "anyOf": [
+              {
+                "maxLength": 100000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Text"
           },
           "text": {
             "maxLength": 8000,

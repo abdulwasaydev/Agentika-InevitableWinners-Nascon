@@ -1,6 +1,7 @@
 """One bounded, persistent verification job through actual services."""
 
 import os
+import hashlib
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -12,6 +13,10 @@ from ..providers.live import ProviderFailure, live_extract
 from .extraction import ClaimLimitExceeded, ExtractedClaim, extract_claims
 from .policy import PolicyClaim, release_action
 from .comparison import compare_promise
+from .official_policy import (
+    POLICY_ORIGIN, PASTED_POLICY_ORIGIN, PolicySnapshot, PolicySourceUnavailable,
+    compare_official_policy, compare_policy_text,
+)
 from .verification import verify_one_claim
 
 
@@ -34,7 +39,7 @@ def process_job(factory: sessionmaker[Session], job_id: UUID, *, max_claims: int
             assert job is not None
             extracted = (
                 [ExtractedClaim(job.input_text, 0, len(job.input_text), "checkable", False)]
-                if job.documents else
+                if job.documents or job.origin in {POLICY_ORIGIN, PASTED_POLICY_ORIGIN} else
                 extract_claims(job.input_text, max_claims=max_claims) if demo_mode() else
                 live_extract(job.input_text, max_claims=max_claims)
             )
@@ -44,7 +49,16 @@ def process_job(factory: sessionmaker[Session], job_id: UUID, *, max_claims: int
             policy_claims: list[PolicyClaim] = []
 
             for item in extracted:
-                comparison = compare_promise(item.text, job.documents) if job.documents else None
+                if job.origin == POLICY_ORIGIN:
+                    comparison = compare_official_policy(item.text)
+                elif job.origin == PASTED_POLICY_ORIGIN:
+                    if len(job.documents) != 1:
+                        raise PolicySourceUnavailable("Pasted policy document is missing")
+                    policy_text = job.documents[0].text
+                    snapshot = PolicySnapshot(policy_text, hashlib.sha256(policy_text.encode("utf-8")).hexdigest(), job.created_at)
+                    comparison = compare_policy_text(item.text, snapshot, verified_source=False)
+                else:
+                    comparison = compare_promise(item.text, job.documents) if job.documents else None
                 verification = None if comparison else verify_one_claim(
                     item, use_demo=demo_mode(), unresolved_parent=unresolved_parent,
                 )
@@ -95,7 +109,7 @@ def process_job(factory: sessionmaker[Session], job_id: UUID, *, max_claims: int
             session.add(AuditEvent(
                 id=uuid4(), entity_type="job", entity_id=job.id,
                 action="verification_completed", actor="worker",
-                metadata_json={"claim_count": len(extracted), "demo_mode": demo_mode()},
+                metadata_json={"claim_count": len(extracted), "demo_mode": demo_mode() and job.origin not in {POLICY_ORIGIN, PASTED_POLICY_ORIGIN}},
             ))
             session.commit()
     except Exception as exc:
@@ -103,7 +117,8 @@ def process_job(factory: sessionmaker[Session], job_id: UUID, *, max_claims: int
             job = session.get(VerificationJob, job_id)
             if job is not None:
                 job.status = JobStatus.failed
-                job.error_code = ("CLAIM_LIMIT_EXCEEDED" if isinstance(exc, ClaimLimitExceeded)
+                job.error_code = ("SOURCE_UNAVAILABLE" if isinstance(exc, PolicySourceUnavailable)
+                                  else "CLAIM_LIMIT_EXCEEDED" if isinstance(exc, ClaimLimitExceeded)
                                   else "PROVIDER_ERROR" if isinstance(exc, ProviderFailure)
                                   else "PROCESSING_ERROR")
                 job.overall_action = "hold_for_review"
