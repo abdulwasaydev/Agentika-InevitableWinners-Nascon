@@ -24,7 +24,7 @@ A summary describes each document. This workflow compares documents: what was pr
 5. Display a document-comparison result: **consistent**, **qualified**, **conflicting**, or **insufficient evidence**.
 6. A human inspects the evidence and records a decision with rationale. Preserve the original machine finding and review history.
 
-These comparison labels are a planned domain presentation, not a claim that new API enums already exist. Inspect existing schemas and document any explicit mapping to current claim statuses. Keep claim findings distinct from Guardian release actions. A qualified promise must not be presented as unconditionally supported.
+These comparison labels are now explicit `comparison_result` fields, separate from claim statuses and Guardian release actions. The deterministic adapter maps **consistent** to `supported`, **qualified** to `pending_review`, **conflicting** to `disputed`, and **insufficient evidence** to `insufficient_evidence`. Qualified wording is never presented as unconditionally supported.
 
 Neither examiner must invent an argument for its assigned side. No relevant passage is a valid finding. Use bounded supplied evidence; do not imply an exhaustive internet search.
 
@@ -216,7 +216,11 @@ See [backend setup](backend/README.md) for current commands and configuration. M
 
 ## Current recorded status
 
-Backend code includes a generated contract, PostgreSQL models and reviewable migration SQL, one bounded worker, deterministic synthetic verification, review/audit history, strict and balanced release policy, minimal explicit lineage, and optional Brave Search / OpenAI-compatible provider adapters. Wasay's frontend is integrated on this branch with responsive styling, passing tests and production build, and a client adapted to the canonical FastAPI responses. PostgreSQL persistence and live provider calls still need an isolated configured environment for execution tests; production packaging and deployment are not verified. Search snippets are labeled unverified and cannot alone produce a `pass`.
+The integrated MVP now accepts an advertised promise plus up to three versioned, user-supplied policy documents. A bounded deterministic comparator cites exact passages and records **consistent**, **qualified**, **conflicting**, or **insufficient evidence** separately from provisional/effective claim findings and Guardian release action. Three fictional cases are available as frontend prefill inputs. Reviews persist in the service pipeline and strict Guardian holds qualified or unresolved output after review.
+
+**Verified locally:** 28 backend tests passed (one PostgreSQL test skipped), 23 frontend tests passed, frontend typecheck and production build passed. TestClient exercised the real API/service flow against an isolated disposable SQLAlchemy test database. Browser inspection covered the promise form, simulated review/Guardian screens, and live-mode 503 behavior. **Unverified:** Supabase-backed three-case browser rehearsal, persistence across process restart, hosted AI/search calls, production packaging, and deployment. The browser's explicit Synthetic demo mode remains a separate simulation. See [readiness evidence](docs/DEMO_READINESS.md) and the [six-minute script](docs/DEMO_SCRIPT.md).
+
+**Local start:** from the repository root, create `.venv` and install `backend/requirements.txt`; copy `backend/.env.example` to ignored `backend/.env` and enter only a separate Veritas PostgreSQL URL. Manually apply reviewed [SQL](backend/initial_schema.sql) in Supabase. Then run `cd backend; ..\.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` in one PowerShell, and `cd frontend; corepack pnpm dev` in another. Open `http://127.0.0.1:5173/` and select **Live API**. `/health` must report `database_ready: true` before submitting. If already on an older migration revision, follow [incremental SQL instructions](backend/README.md). Keep credentials in ignored local files; never paste them into chat.
 
 ## Event requirements
 
