@@ -34,7 +34,8 @@ def test_two_supplied_documents_stay_linked_to_one_promise(monkeypatch):
         assert result.status_code == 200
         data = result.json()
         assert data["status"] == "completed"
-        assert data["overall_action"] == "hold_for_review"
+        assert data["overall_action"] == "pass"
+        assert data["claims"][0]["comparison_result"] == "consistent"
         assert data["claims"][0]["text"] == "Cancel anytime; access continues through the paid month."
         assert len(data["claims"]) == 1
         assert data["documents"] == sorted(documents, key=lambda d: d["document_id"])

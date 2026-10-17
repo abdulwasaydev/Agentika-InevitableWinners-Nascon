@@ -1,4 +1,4 @@
-import type { Action, Claim, Decision, Evidence, Finding, Job, JobStatus, Review, SuppliedDocument, VeritasApi } from './types';
+import type { Action, Claim, ComparisonResult, Decision, Evidence, Finding, Job, JobStatus, Review, SuppliedDocument, VeritasApi } from './types';
 
 /** The sole boundary between the canonical FastAPI contract and the UI view model. */
 export class ApiError extends Error {
@@ -50,6 +50,7 @@ function parseClaim(value: unknown, detail = false): Claim {
   if (typeof needsReview !== 'boolean') throw contractError();
   string(c.checkability);
   const reasons = strings(c.reason_codes);
+  const comparison = c.comparison_result == null ? null : choice<ComparisonResult>(c.comparison_result, ['consistent', 'qualified', 'conflicting', 'insufficient_evidence']);
   strings(c.support_evidence_ids); strings(c.challenge_evidence_ids);
   const assessments = detail ? array(c.assessments).map(value => {
     const a = record(value);
@@ -66,6 +67,8 @@ function parseClaim(value: unknown, detail = false): Claim {
     effective_status: effective, needs_review: needsReview, explanation, evidence,
     limitations: assessments.flatMap(a => a.limitations ? [a.limitations] : []),
     reason_codes: reasons, human_review: history.at(-1) ?? null, review_history: history,
+    comparison_result: comparison, comparison_explanation: optionalString(c.comparison_explanation),
+    unresolved_questions: strings(c.unresolved_questions ?? []),
     assessments, parent_claim_ids: parentIds,
   };
 }

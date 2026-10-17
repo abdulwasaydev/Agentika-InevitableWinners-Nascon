@@ -11,6 +11,7 @@ from ..schemas import ClaimStatus, JobStatus
 from ..providers.live import ProviderFailure, live_extract
 from .extraction import ClaimLimitExceeded, ExtractedClaim, extract_claims
 from .policy import PolicyClaim, release_action
+from .comparison import compare_promise
 from .verification import verify_one_claim
 
 
@@ -43,14 +44,14 @@ def process_job(factory: sessionmaker[Session], job_id: UUID, *, max_claims: int
             policy_claims: list[PolicyClaim] = []
 
             for item in extracted:
-                verification = verify_one_claim(
+                comparison = compare_promise(item.text, job.documents) if job.documents else None
+                verification = None if comparison else verify_one_claim(
                     item, use_demo=demo_mode(), unresolved_parent=unresolved_parent,
-                    document_mode=bool(job.documents),
                 )
-                candidates = verification.evidence
-                support = verification.support
-                challenge = verification.challenge
-                finding = verification.finding
+                candidates = comparison.evidence if comparison else verification.evidence
+                support = comparison.support if comparison else verification.support
+                challenge = comparison.challenge if comparison else verification.challenge
+                finding = comparison.finding if comparison else verification.finding
                 claim = Claim(
                     id=uuid4(), job_id=job.id, text=item.text,
                     start_offset=item.start_offset, end_offset=item.end_offset,
@@ -59,6 +60,9 @@ def process_job(factory: sessionmaker[Session], job_id: UUID, *, max_claims: int
                     effective_status=finding.effective_status,
                     needs_review=finding.needs_review,
                     reason_codes=finding.reason_codes,
+                    comparison_result=comparison.result if comparison else None,
+                    comparison_explanation=comparison.explanation if comparison else None,
+                    unresolved_questions=comparison.unresolved_questions if comparison else [],
                     material=item.checkability == "checkable", high_risk=item.high_risk,
                 )
                 session.add(claim)

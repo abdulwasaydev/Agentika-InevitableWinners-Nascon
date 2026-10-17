@@ -18,10 +18,9 @@ class ClaimVerification:
     finding: Finding
 
 
-def verify_one_claim(item: ExtractedClaim, *, use_demo: bool, unresolved_parent: bool = False,
-                     document_mode: bool = False) -> ClaimVerification:
+def verify_one_claim(item: ExtractedClaim, *, use_demo: bool, unresolved_parent: bool = False) -> ClaimVerification:
     provider_error = False
-    if item.checkability == "not_checkable" or document_mode:
+    if item.checkability == "not_checkable":
         candidates = []
     else:
         try:
@@ -31,7 +30,7 @@ def verify_one_claim(item: ExtractedClaim, *, use_demo: bool, unresolved_parent:
             provider_error = True
 
     evidence_invalid = not all([validate_evidence(e) for e in candidates])
-    if use_demo or not candidates or document_mode:
+    if use_demo or not candidates:
         support = support_assess(item.text, candidates)
         challenge = challenge_assess(item.text, candidates)
     else:

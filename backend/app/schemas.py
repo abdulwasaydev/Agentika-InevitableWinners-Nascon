@@ -24,6 +24,13 @@ class ClaimStatus(StrEnum):
     not_checkable = "not_checkable"
 
 
+class ComparisonResult(StrEnum):
+    consistent = "consistent"
+    qualified = "qualified"
+    conflicting = "conflicting"
+    insufficient_evidence = "insufficient_evidence"
+
+
 class ReleaseAction(StrEnum):
     pass_ = "pass"
     annotate = "annotate"
@@ -126,6 +133,9 @@ class ClaimSummary(BaseModel):
     effective_status: ClaimStatus
     needs_review: bool
     reason_codes: list[str]
+    comparison_result: ComparisonResult | None = None
+    comparison_explanation: str | None = None
+    unresolved_questions: list[str] = Field(default_factory=list)
     support_evidence_ids: list[UUID]
     challenge_evidence_ids: list[UUID]
     corrected_text: str | None = None

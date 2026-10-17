@@ -77,6 +77,27 @@
             "title": "Checkability",
             "type": "string"
           },
+          "comparison_explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Explanation"
+          },
+          "comparison_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComparisonResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "corrected_text": {
             "anyOf": [
               {
@@ -170,6 +191,13 @@
           "text": {
             "title": "Text",
             "type": "string"
+          },
+          "unresolved_questions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved Questions",
+            "type": "array"
           }
         },
         "required": [
@@ -215,6 +243,27 @@
           "checkability": {
             "title": "Checkability",
             "type": "string"
+          },
+          "comparison_explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Explanation"
+          },
+          "comparison_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComparisonResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "corrected_text": {
             "anyOf": [
@@ -287,6 +336,13 @@
           "text": {
             "title": "Text",
             "type": "string"
+          },
+          "unresolved_questions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved Questions",
+            "type": "array"
           }
         },
         "required": [
@@ -303,6 +359,16 @@
         ],
         "title": "ClaimSummary",
         "type": "object"
+      },
+      "ComparisonResult": {
+        "enum": [
+          "consistent",
+          "qualified",
+          "conflicting",
+          "insufficient_evidence"
+        ],
+        "title": "ComparisonResult",
+        "type": "string"
       },
       "ErrorOut": {
         "properties": {

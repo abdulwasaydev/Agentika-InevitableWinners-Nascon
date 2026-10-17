@@ -3,6 +3,7 @@ export type Mode = 'live' | 'demo';
 export type Action = 'pass' | 'annotate' | 'hold_for_review';
 export type JobStatus = 'queued' | 'processing' | 'completed' | 'review_pending' | 'failed' | 'interrupted' | 'provider_unavailable';
 export type Finding = 'supported' | 'challenged' | 'insufficient_evidence' | 'pending_review' | 'not_checkable';
+export type ComparisonResult = 'consistent' | 'qualified' | 'conflicting' | 'insufficient_evidence';
 export type Decision = 'supported' | 'challenged' | 'uncertain' | 'more_evidence';
 export type Scenario = 'review' | 'pass' | 'annotate' | 'disputed' | 'insufficient' | 'failed' | 'interrupted' | 'provider_unavailable';
 
@@ -30,6 +31,9 @@ export interface Claim {
   evidence: Evidence[];
   limitations: string[];
   reason_codes: string[];
+  comparison_result?: ComparisonResult | null;
+  comparison_explanation?: string | null;
+  unresolved_questions?: string[];
   human_review: Review | null;
   effective_status?: Finding;
   needs_review?: boolean;

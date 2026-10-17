@@ -36,7 +36,7 @@ def database_ready(engine: Engine | None) -> bool:
         if not all(inspector.has_table(name) for name in Base.metadata.tables) or not inspector.has_table("alembic_version"):
             return False
         with engine.connect() as connection:
-            return connection.scalar(text("SELECT version_num FROM alembic_version")) == "0002_supplied_documents"
+            return connection.scalar(text("SELECT version_num FROM alembic_version")) == "0003_comparison"
     except Exception:
         return False
 

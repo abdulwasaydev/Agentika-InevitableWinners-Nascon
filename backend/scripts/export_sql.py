@@ -7,7 +7,8 @@ from pathlib import Path
 backend_dir = Path(__file__).resolve().parents[1]
 for revision, filename in (
     ("head", "initial_schema.sql"),
-    ("0001_initial:head", "upgrade_0001_to_0002.sql"),
+    ("0001_initial:0002_supplied_documents", "upgrade_0001_to_0002.sql"),
+    ("0002_supplied_documents:head", "upgrade_0002_to_0003.sql"),
 ):
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(backend_dir / "alembic.ini"), "upgrade", revision, "--sql"],
