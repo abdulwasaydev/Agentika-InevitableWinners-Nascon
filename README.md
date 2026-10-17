@@ -230,7 +230,7 @@ current commands, runtime secrets, judge login, and verification requirements.
 The ordered handoff below records the original prerequisites. A public cloud
 deployment has not yet been verified.
 
-This repository is **running locally, not deployed**. The local link is `http://127.0.0.1:5173/` while Vite and FastAPI are running on this computer; it is not a public URL. There is currently no Dockerfile, production static-file route, authentication, or provider-specific cloud configuration. A new agent should use the following order when the user authorizes deployment:
+This repository is **running locally, not yet verified on the cloud**. The local link is `http://127.0.0.1:5173/` while Vite and FastAPI are running on this computer; it is not a public URL. Docker packaging, production static serving, and a shared judge login are implemented. A new agent should use the following order when the user authorizes deployment:
 
 1. From the repository root, read `AGENTS.md`, `docs/DEMO_READINESS.md`, and `backend/README.md`; run `git status --short --branch`, `git fetch origin`, and confirm `arman/backend-foundation` tracks `origin/arman/backend-foundation`. Preserve the working tree and Wasay's original frontend history. Do not merge into `main`.
 2. Confirm the **separate Veritas** Supabase project has the reviewed schema at Alembic revision `0003_comparison`. For a fresh project, the user manually applies `backend/initial_schema.sql`; for an older revision, use the reviewed incremental SQL in `backend/`. Never run a remote migration automatically or use SocietyOS.
