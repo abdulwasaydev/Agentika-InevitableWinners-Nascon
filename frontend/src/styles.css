@@ -80,6 +80,11 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .badge.success { background: #e4f1e5; color: #256343; }.badge.warning { background: #fff1d5; color: #8b6328; }.badge.danger { background: #fae9e4; color: #9b4a3f; }.badge.info { background: #e6edf3; color: #3b637b; }
 .badge.success .badge-dot { background: #4a9e65; }.badge.warning .badge-dot { background: #d2a14d; }.badge.danger .badge-dot { background: #c96955; }
 .editor-label { margin: 30px 0 10px; font-size: 12px; font-weight: 700; }
+.case-picker { margin-top: 27px; padding: 16px; border: 1px solid #d7e2d2; background: #f3f6ef; border-radius: 7px; }
+.case-picker label { display: block; font-size: 12px; font-weight: 750; margin-bottom: 9px; }
+.case-picker > div { display: flex; gap: 10px; align-items: center; }
+.case-picker select { flex: 1; min-width: 0; border: 1px solid #c4d3c3; background: #fff; border-radius: 6px; padding: 9px; color: #25473b; }
+.case-picker p { color: #657c69; font-size: 11px; line-height: 1.5; margin: 9px 0 0; }
 textarea, input[type="text"], .scenario-field select, .queue-toolbar select { width: 100%; color: #25473b; background: #fff; border: 1px solid #ccd7cb; border-radius: 7px; padding: 12px 13px; }
 textarea { resize: vertical; line-height: 1.6; }
 .submission-panel textarea { min-height: 220px; }

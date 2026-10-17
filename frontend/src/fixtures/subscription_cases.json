@@ -1,0 +1,65 @@
+[
+  {
+    "id": "holds-up",
+    "title": "Promise holds up",
+    "advertisement": "Cancel anytime; access continues until the end of your paid month.",
+    "documents": [
+      {
+        "document_id": "FICTIONAL-HOLDS-TERMS-v1",
+        "title": "Fictional Meridian Club subscription terms",
+        "version": "v1",
+        "effective_date": "2026-10-01",
+        "text": "Members may cancel at any time. Cancellation stops the next renewal. Access continues through the end of the paid month."
+      },
+      {
+        "document_id": "FICTIONAL-HOLDS-FAQ-v1",
+        "title": "Fictional Meridian Club cancellation FAQ",
+        "version": "v1",
+        "effective_date": "2026-10-01",
+        "text": "You can cancel in account settings at any time. Access remains available through the current paid month."
+      }
+    ]
+  },
+  {
+    "id": "exception",
+    "title": "Significant exception",
+    "advertisement": "Full refund within 30 days.",
+    "documents": [
+      {
+        "document_id": "FICTIONAL-EXCEPTION-REFUNDS-v2",
+        "title": "Fictional Lantern Pass refund policy",
+        "version": "v2",
+        "effective_date": "2026-10-05",
+        "text": "A full refund is available within 30 days only if the service has never been used. Used subscriptions are not eligible for a full refund."
+      },
+      {
+        "document_id": "FICTIONAL-EXCEPTION-TERMS-v2",
+        "title": "Fictional Lantern Pass subscription terms",
+        "version": "v2",
+        "effective_date": "2026-10-05",
+        "text": "The paid subscription begins at purchase. Service usage begins when a member opens premium content."
+      }
+    ]
+  },
+  {
+    "id": "unresolved",
+    "title": "Cannot be resolved",
+    "advertisement": "Cancel anytime and receive a refund.",
+    "documents": [
+      {
+        "document_id": "FICTIONAL-UNRESOLVED-CANCEL-v1",
+        "title": "Fictional Willow Stream cancellation policy",
+        "version": "v1",
+        "effective_date": "2026-10-08",
+        "text": "Members may cancel at any time through account settings. Cancellation stops the next renewal."
+      },
+      {
+        "document_id": "FICTIONAL-UNRESOLVED-BILLING-v1",
+        "title": "Fictional Willow Stream billing schedule",
+        "version": "v1",
+        "effective_date": "2026-10-08",
+        "text": "The subscription renews monthly until cancellation. Charges occur on the first day of each billing period."
+      }
+    ]
+  }
+]

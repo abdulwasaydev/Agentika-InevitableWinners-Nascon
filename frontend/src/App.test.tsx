@@ -38,6 +38,25 @@ it('shows live failure without claiming synthetic verification', async () => {
   expect(screen.queryByText('Extracted claims')).not.toBeInTheDocument();
 });
 
+it('prefills fictional policy inputs without injecting a verdict or deleting backend records', async () => {
+  const user = userEvent.setup();
+  const api = { submit: vi.fn().mockRejectedValue(new Error('Database unavailable')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
+  mount('/', api, 'live');
+  await user.selectOptions(screen.getByLabelText('Try a fictional subscription case'), 'exception');
+  expect(screen.getByLabelText('Advertised promise')).toHaveValue('Full refund within 30 days.');
+  expect(screen.getByDisplayValue('FICTIONAL-EXCEPTION-REFUNDS-v2')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Verify claims' }));
+  await waitFor(() => expect(api.submit).toHaveBeenCalled());
+  const submitted = api.submit.mock.calls[0][0];
+  expect(submitted.documents).toHaveLength(2);
+  expect(submitted.documents[0].text).toContain('never been used');
+  expect(submitted).not.toHaveProperty('comparison_result');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Database unavailable');
+  await user.click(screen.getByRole('button', { name: 'Clear form' }));
+  expect(screen.getByLabelText('Text to verify')).toHaveValue('');
+  expect(api.submit).toHaveBeenCalledTimes(1);
+});
+
 it('records review then refetches the job; a successful review alone never releases Guardian output', async () => {
   const user = userEvent.setup();
   const job: Job = { job_id: 'j', status: 'review_pending', overall_action: 'hold_for_review', submitted_text: 'HELD ORIGINAL TEXT', claim_ids: ['c'], created_at: '', limitations: [], reason_codes: ['human_review_required'] };
