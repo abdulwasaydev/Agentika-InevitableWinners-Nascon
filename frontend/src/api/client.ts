@@ -87,7 +87,7 @@ function parseJob(value: unknown): Job {
     return { document_id: string(d.document_id), title: string(d.title), version: optionalString(d.version), effective_date: optionalString(d.effective_date), text: string(d.text) };
   });
   return {
-    job_id: id, status: (status === 'running' ? 'processing' : status) as JobStatus,
+    job_id: id, origin: string(j.origin), status: (status === 'running' ? 'processing' : status) as JobStatus,
     submitted_text: string(j.input_text), documents, overall_action: action,
     claim_ids: claims.map(claim => claim.claim_id), created_at: string(j.created_at),
     limitations: [], reason_codes: [],
@@ -124,10 +124,13 @@ export function createLiveApi(fetcher: typeof fetch = fetch): VeritasApi {
   return {
     async submit(input, signal) {
       if (!input.text.trim() || input.text.length > 8000) throw new ApiError('Enter claim text between 1 and 8,000 characters.');
+      if (input.policy_text && (input.policy_text.length < 10000 || input.policy_text.length > 100000)) throw new ApiError('Paste the full policy document (10,000 to 100,000 characters).');
       const mode = input.mode ?? 'claim_court';
       const result = record(await request('/verify', signal, {
         text: input.text, mode, policy: 'strict', origin: mode === 'guardian' ? 'agent_output' : 'user_input',
         documents: input.documents ?? [],
+        ...(input.policy_source ? { policy_source: input.policy_source } : {}),
+        ...(input.policy_text ? { policy_text: input.policy_text } : {}),
       }, 202));
       const id = string(result.job_id);
       if (!id.trim() || choice(result.status, ['queued']) !== 'queued' || string(result.poll_url) !== `/api/v1/jobs/${id}`) throw contractError();

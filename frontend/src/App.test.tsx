@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -7,7 +7,7 @@ import { WorkspaceProvider } from './Workspace';
 import type { Claim, Job, VeritasApi } from './api/types';
 import { DEMO_TEXT } from './api/demo';
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
 function mount(path = '/', api?: VeritasApi, mode: 'live' | 'demo' = 'demo') {
   return render(<MemoryRouter initialEntries={[path]}><WorkspaceProvider initialMode={mode} liveApi={api}><AppRoutes /></WorkspaceProvider></MemoryRouter>);
 }
@@ -38,23 +38,70 @@ it('shows live failure without claiming synthetic verification', async () => {
   expect(screen.queryByText('Extracted claims')).not.toBeInTheDocument();
 });
 
-it('prefills fictional policy inputs without injecting a verdict or deleting backend records', async () => {
+it('accepts manually supplied policy text without a fictional picker or a prefilled verdict', async () => {
   const user = userEvent.setup();
   const api = { submit: vi.fn().mockRejectedValue(new Error('Database unavailable')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
   mount('/', api, 'live');
-  await user.selectOptions(screen.getByLabelText('Try a fictional subscription case'), 'exception');
-  expect(screen.getByLabelText('Advertised promise')).toHaveValue('Full refund within 30 days.');
-  expect(screen.getByDisplayValue('FICTIONAL-EXCEPTION-REFUNDS-v2')).toBeVisible();
+  expect(screen.queryByLabelText('Try a fictional subscription case')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('checkbox', { name: /Compare this advertised promise/ }));
+  await user.type(screen.getByLabelText('Advertised promise'), 'An account can be closed at any time.');
+  await user.type(screen.getAllByLabelText('Title')[0], 'Account policy');
+  await user.type(screen.getAllByLabelText('Exact policy text')[0], 'You can close your account at any time.');
   await user.click(screen.getByRole('button', { name: 'Compare documents' }));
   await waitFor(() => expect(api.submit).toHaveBeenCalled());
   const submitted = api.submit.mock.calls[0][0];
-  expect(submitted.documents).toHaveLength(2);
-  expect(submitted.documents[0].text).toContain('never been used');
+  expect(submitted.documents).toHaveLength(1);
+  expect(submitted.documents[0].text).toContain('close your account');
   expect(submitted).not.toHaveProperty('comparison_result');
   expect(await screen.findByRole('alert')).toHaveTextContent('Database unavailable');
   await user.click(screen.getByRole('button', { name: 'Clear form' }));
   expect(screen.getByLabelText('Text to verify')).toHaveValue('');
   expect(api.submit).toHaveBeenCalledTimes(1);
+});
+
+it('submits the official GitHub policy selection without synthetic fallback', async () => {
+  const user = userEvent.setup();
+  const api: VeritasApi = { submit: vi.fn().mockRejectedValue(new Error('LLM not configured')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
+  mount('/', api, 'live');
+  await user.click(screen.getByRole('checkbox', { name: /Scan GitHub's privacy statement/ }));
+  await user.click(screen.getByRole('button', { name: /GitHub never uses personal data/ }));
+  await user.click(screen.getByRole('button', { name: 'Scan official policy' }));
+  await waitFor(() => expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ policy_source: 'github_privacy', documents: [] }), expect.anything()));
+  expect(await screen.findByRole('alert')).toHaveTextContent('LLM not configured');
+});
+
+it('submits a full pasted GitHub policy and retains it for the next claim in this session', async () => {
+  const user = userEvent.setup();
+  const api: VeritasApi = { submit: vi.fn().mockRejectedValue(new Error('Provider unavailable')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
+  const view = mount('/', api, 'live');
+  await user.click(screen.getByRole('checkbox', { name: /Scan GitHub's privacy statement/ }));
+  const policy = 'GitHub privacy policy text. '.repeat(500);
+  fireEvent.change(screen.getByLabelText('Paste the entire GitHub privacy statement (optional)'), { target: { value: policy } });
+  await user.click(screen.getByRole('button', { name: /GitHub collects email addresses/ }));
+  await user.click(screen.getByRole('button', { name: 'Scan pasted policy' }));
+  await waitFor(() => expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ policy_source: 'github_privacy', policy_text: policy.trim() }), expect.anything()));
+  view.unmount();
+  mount('/', api, 'live');
+  await user.click(screen.getByRole('checkbox', { name: /Scan GitHub's privacy statement/ }));
+  expect(screen.getByLabelText('Paste the entire GitHub privacy statement (optional)')).toHaveValue(policy);
+});
+
+it('shows separate in-favor and against notes with the cited policy passage', async () => {
+  const detail: Claim = {
+    claim_id: 'c', job_id: 'j', text: 'GitHub never uses personal data to train AI models.',
+    finding: 'challenged', effective_status: 'pending_review', needs_review: true,
+    explanation: 'Two agents examined the policy.', limitations: [], reason_codes: [], human_review: null,
+    evidence: [{ evidence_id: 'e', title: 'GitHub Privacy Statement', url: 'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement', excerpt: 'including training models', stance: 'challenging', source_type: 'official_privacy_policy', validity_status: 'valid' }],
+    assessments: [
+      { role: 'support', position: 'no_support', reasoning_summary: 'No direct support found.', evidence_ids: [] },
+      { role: 'challenge', position: 'challenges', reasoning_summary: 'The policy mentions training models.', evidence_ids: ['e'] },
+    ],
+  };
+  const api: VeritasApi = { submit: vi.fn(), getJob: vi.fn(), getClaim: vi.fn().mockResolvedValue(detail), listReviews: vi.fn(), review: vi.fn() };
+  mount('/claims/c', api, 'live');
+  expect(await screen.findByText('No direct support found.')).toBeVisible();
+  expect(screen.getByText('The policy mentions training models.')).toBeVisible();
+  expect(screen.getAllByText('including training models').length).toBeGreaterThan(0);
 });
 
 it('records review then refetches the job; a successful review alone never releases Guardian output', async () => {

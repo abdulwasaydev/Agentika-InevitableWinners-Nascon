@@ -14,15 +14,15 @@ export function useJob(api: VeritasApi, id: string, interval = 1000) {
     async function poll() {
       try {
         const job = await api.getJob(id, controller.signal);
-        if (job.job_id !== id) throw new Error('API contract mismatch: returned case does not match the requested case.');
+        if (job.job_id !== id) throw new Error('API contract mismatch: returned check does not match the requested check.');
         const claims = isTerminal(job.status) ? await Promise.all(job.claim_ids.map(claimId => api.getClaim(claimId, controller.signal))) : [];
-        if (claims.some((claim, index) => claim.job_id !== id || claim.claim_id !== job.claim_ids[index])) throw new Error('API contract mismatch: claim ownership does not match this case.');
+        if (claims.some((claim, index) => claim.job_id !== id || claim.claim_id !== job.claim_ids[index])) throw new Error('API contract mismatch: claim ownership does not match this check.');
         if (!active) return;
         setState({ id, api, revision, job, claims, loading: false, error: null });
         if (!isTerminal(job.status)) timer = setTimeout(poll, interval);
       } catch (error) {
         if (!active || controller.signal.aborted) return;
-        setState({ id, api, revision, job: null, claims: [], loading: false, error: error instanceof Error ? error.message : 'The case could not be loaded.' });
+        setState({ id, api, revision, job: null, claims: [], loading: false, error: error instanceof Error ? error.message : 'The check could not be loaded.' });
       }
     }
     void poll();

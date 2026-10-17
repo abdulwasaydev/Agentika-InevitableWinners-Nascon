@@ -43,6 +43,7 @@ export interface Claim {
 }
 export interface Job {
   job_id: string;
+  origin?: string;
   status: JobStatus;
   submitted_text: string;
   documents?: SuppliedDocument[];
@@ -54,7 +55,7 @@ export interface Job {
   revised_output?: string | null;
   error?: string | null;
 }
-export interface Submission { text: string; mode?: 'guardian' | 'claim_court'; scenario?: Scenario; documents?: SuppliedDocument[] }
+export interface Submission { text: string; mode?: 'guardian' | 'claim_court'; scenario?: Scenario; documents?: SuppliedDocument[]; policy_source?: 'github_privacy'; policy_text?: string }
 export interface VeritasApi {
   submit(input: Submission, signal?: AbortSignal): Promise<{ job_id: string }>;
   getJob(id: string, signal?: AbortSignal): Promise<Job>;

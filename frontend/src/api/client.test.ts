@@ -33,6 +33,23 @@ it('submits the canonical Guardian request and requires HTTP 202', async () => {
   });
 });
 
+it('sends the official policy source through the canonical verify request', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json(accepted, 202));
+  await createLiveApi(fetcher).submit({ text: 'GitHub collects account email addresses.', policy_source: 'github_privacy' });
+  const body = JSON.parse(fetcher.mock.calls[0][1]?.body as string);
+  expect(body.policy_source).toBe('github_privacy');
+  expect(body.documents).toEqual([]);
+});
+
+it('sends the complete pasted policy as a separate source', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json(accepted, 202));
+  const policy = 'GitHub privacy statement. '.repeat(500);
+  await createLiveApi(fetcher).submit({ text: 'GitHub collects email addresses.', policy_source: 'github_privacy', policy_text: policy });
+  const body = JSON.parse(fetcher.mock.calls[0][1]?.body as string);
+  expect(body.policy_text).toBe(policy);
+  expect(body.documents).toEqual([]);
+});
+
 it('reads the canonical completed job and detailed evidence before Guardian release', async () => {
   const fetcher = vi.fn<typeof fetch>()
     .mockResolvedValueOnce(json(completed))
