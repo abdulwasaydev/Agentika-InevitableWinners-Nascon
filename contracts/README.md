@@ -12,6 +12,8 @@ Job statuses: `queued`, `running`, `completed`, `failed`, `interrupted`. Claim f
 
 ## Review transitions
 
+For a GitHub policy scan, set `policy_source` to `github_privacy` and omit `documents`; see `examples/github-policy-request.json`. Leave `policy_text` out to use the locally downloaded official GitHub Docs snapshot. To scan a full document pasted by the user, add `policy_text` as a separate string of 10,000 to 100,000 characters. The backend persists that exact text with the job and labels its evidence `user_supplied_privacy_policy` / `user_pasted_unverified`; pasted text has no authenticated source URL. Both paths rank passages across the full document and call separate support and challenge LLM roles. Every cited quote must exactly match a selected passage. The claim stays `pending_review` until a human decision. Missing keys, provider failures, and invalid quotes never permit Guardian release. This is model-assisted analysis of written text, not proof of company practice or authenticity of a paste.
+
 `GET /api/v1/reviews?status=pending` lists claims requiring review. `POST /api/v1/claims/{claim_id}/reviews` requires `decision`, `reviewer_id`, and `rationale`. Decisions are `approve`, `dispute`, `insufficient`, `request_more_evidence`, and `correct`; `correct` also requires `corrected_text`. Reviews append to the audit history and preserve the provisional machine finding. A correction is a proposal beside the original text, not an edit to it. The backend recalculates the job action from **all** material claims. Completing a review does not necessarily release a strict-mode job: disputed, insufficient, or still-pending claims continue to hold it.
 
 ## Frontend behavior

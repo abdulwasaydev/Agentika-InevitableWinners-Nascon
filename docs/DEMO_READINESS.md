@@ -1,5 +1,9 @@
 # Demo readiness
 
+## Update: local Supabase and official-policy preparation
+
+On 2026-10-17 the separate Veritas Supabase connection reported `database_ready: true`. The official GitHub privacy statement was downloaded through GitHub Docs' Article API into ignored `backend/data/`; SHA-256 and retrieval time are recorded beside it. With a Gemini key in ignored `backend/.env`, two downloaded-source and three full-policy-paste claims were submitted through the local frontend proxy and persisted in Supabase. On the pasted path, the absolute no-training claim returned a cited challenge and stayed `hold_for_review` after human dispute; the account-email claim returned cited support and changed from hold to `pass` after human approval; the service-provider claim returned cited support and remains pending review. All pasted evidence was labeled user supplied with no authenticated URL, and every quote was found in the stored pasted text. Claims, evidence, two-role notes, reviews, and release actions survived a FastAPI restart. The Live API screen no longer displays fictional subscription prefills; Synthetic demo remains explicitly labeled. Keep the milestone table below as the original pre-configuration record.
+
 Updated 2026-10-17. Work remains on `arman/backend-foundation`; the README was fast-forwarded from origin without local changes to preserve.
 
 ## Plan
@@ -26,4 +30,4 @@ Updated 2026-10-17. Work remains on `arman/backend-foundation`; the README was f
 
 The backend accepts no in-memory fallback. An unavailable real API must remain an error in live frontend mode. Do not describe generated or fictional passages as live retrieval.
 
-**Current manual dependency:** Create a separate Veritas Supabase PostgreSQL project, copy `backend/.env.example` to ignored `backend/.env`, enter its PostgreSQL URL locally, and manually apply reviewed `backend/initial_schema.sql` to a fresh project (or the incremental SQL sequence in `backend/README.md`). Restart FastAPI and confirm `/health` reports `database_ready: true`. Then perform all three live browser cases and a backend restart, recording new results here. No keys are needed for the supplied-document deterministic comparison. See `docs/DEMO_SCRIPT.md` for exact clicks.
+**Current local state:** Supabase, the downloaded policy snapshot, and Gemini are configured on this machine. A fresh clone needs its own ignored `backend/.env`; it needs a policy download only for the downloaded-source option. See `docs/DEMO_SCRIPT.md` for exact clicks. The full paste is stored in Supabase and in browser session storage for repeated claims. The separate supplied-document deterministic comparison needs no Gemini key. An unavailable provider or exhausted free quota can fail a new scan; neither grants release automatically.

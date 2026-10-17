@@ -5,10 +5,10 @@ Python 3.12 and PostgreSQL are required. The API has **no in-memory database fal
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r backend\requirements.txt
-Copy-Item backend\.env.example backend\.env
+if (-not (Test-Path backend\.env)) { Copy-Item backend\.env.example backend\.env }
 ```
 
-Enter a connection string for a separate PostgreSQL database in the untracked `backend/.env`. Keep the Supabase credentials private. `DEMO_MODE=true` selects the deterministic synthetic corpus; it still requires PostgreSQL for jobs and reviews.
+Enter a connection string for a separate PostgreSQL database in the untracked `backend/.env`. The conditional copy preserves an existing local `.env` and its credentials. Keep the Supabase credentials private. `DEMO_MODE=true` selects the deterministic synthetic corpus; it still requires PostgreSQL for jobs and reviews.
 
 Review the [initial migration](alembic/versions/0001_initial.py), [supplied-document migration](alembic/versions/0002_supplied_documents.py), [comparison migration](alembic/versions/0003_comparison.py), and [generated SQL for a fresh database](initial_schema.sql). Generate SQL again with:
 
@@ -40,7 +40,29 @@ Invoke-RestMethod -Uri "http://localhost:8000$($accepted.poll_url)"
 Poll until `completed`, `failed`, or `interrupted`. Use the claim and review endpoints in [the contract guide](../contracts/README.md). A restart marks previously running jobs `interrupted`; queued jobs remain queued for the single worker. Strict mode holds unresolved material claims even after a review that records a dispute or insufficient evidence.
 Reviewing an ancestor claim also returns every downstream claim to `pending_review` and recalculates each affected Guardian job; descendants never become supported automatically.
 
-For optional live calls, set `DEMO_MODE=false`, `BRAVE_SEARCH_API_KEY`, `LLM_API_URL`, `LLM_API_KEY`, and `LLM_MODEL` in `backend/.env`. This sends submitted text to those external services. The search adapter uses [Brave Web Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started), and the LLM adapter expects an [OpenAI-compatible Chat Completions JSON response](https://platform.openai.com/docs/api-reference/chat). It makes at most one search query and two role calls per claim, with bounded timeouts. Search descriptions are **unverified snippets**, not fetched page text; they cannot alone yield `pass`.
+For optional general web-search calls, set `DEMO_MODE=false`, `BRAVE_SEARCH_API_KEY`, `LLM_PROVIDER=gemini`, `LLM_API_KEY`, and `LLM_MODEL` in `backend/.env`. This sends submitted text to those external services. The search adapter uses [Brave Web Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started). The Gemini adapter uses Google's [native generateContent API](https://ai.google.dev/api/generate-content) with JSON output. `LLM_PROVIDER=openai_compatible` remains available if `LLM_API_URL` points to a Chat Completions JSON endpoint. It makes at most one search query and two role calls per claim, with bounded timeouts. Search descriptions are **unverified snippets**, not fetched page text; they cannot alone yield `pass`.
+
+## Official GitHub privacy policy scan
+
+The live UI can scan [GitHub's General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). Download its current Markdown from the [official GitHub Docs Article API](https://docs.github.com/en/get-started/using-github-docs/github-docs-api) before the demo:
+
+```powershell
+.\.venv\Scripts\python backend\scripts\download_github_policy.py
+```
+
+This writes a SHA-256-checked snapshot and retrieval metadata under ignored `backend/data/`; refresh it when the published statement changes. The backend ranks passages across the whole snapshot and sends at most eight relevant passages plus the claim to separate support and challenge LLM roles. Each role's notes appear beside exact quotes and the official source link. Only cited excerpts and analysis records are persisted in PostgreSQL for this downloaded-source path, not the entire snapshot. Retrieval can miss relevant passages, so a supported finding requires human review before Guardian permits release. A contradiction or insufficient finding remains held under strict policy.
+
+To paste the entire policy yourself, select **Live API** → **Policy Check** → **Scan GitHub's privacy statement**, then paste 10,000 to 100,000 characters into the full-document field. The UI keeps the draft in browser session storage so you can try three claims without pasting it again. This path sends `policy_text` alongside one claim, persists that full text in Supabase, and labels its evidence as **user-pasted, source unverified** with no authenticated URL. An empty full-document field uses the downloaded official snapshot instead. No new SQL migration is needed. The full paste is sent to Gemini in selected passages; do not paste private material.
+
+For this scan, set these fields **only** in ignored `backend/.env` and restart the API:
+
+```dotenv
+LLM_PROVIDER=gemini
+LLM_API_KEY=YOUR_KEY_ENTERED_LOCALLY
+LLM_MODEL=gemini-3.8-flash
+```
+
+Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey) and use a model available to your project; Google's [pricing page](https://ai.google.dev/gemini-api/docs/pricing) currently lists a free tier for `gemini-3.8-flash`, subject to its limits and your account settings. `LLM_API_URL` is unused with `LLM_PROVIDER=gemini`. `BRAVE_SEARCH_API_KEY` is not needed for this document path, and `DEMO_MODE=true` may remain enabled for the separate fictional corpus. The policy scan always calls the configured LLM; it never falls back to synthetic success. Each scan makes two bounded model calls. Missing keys, source snapshots, provider errors, and quotes that do not match the downloaded text fail closed. Do not enter secrets in the frontend or chat. No new database migration is required.
 
 Run local checks:
 
@@ -49,4 +71,4 @@ Run local checks:
 .\.venv\Scripts\python -m pytest -q -p no:cacheprovider backend\tests
 ```
 
-The PostgreSQL integration test runs only when `TEST_DATABASE_URL` points to a dedicated local `veritas_test` database on localhost. It is skipped otherwise. Persistence against Supabase and actual live-provider calls have not been verified here. The API is a local MVP without authentication; keep it on localhost until access control and deployment safeguards are added.
+The PostgreSQL integration test runs only when `TEST_DATABASE_URL` points to a dedicated local `veritas_test` database on localhost. It is skipped otherwise. Supabase persistence across a backend restart was verified for downloaded-source and full-paste Gemini scans. Three pasted-policy claims completed; one human-disputed claim stayed held, one human-approved supported claim passed Guardian, and one remains pending review. The Gemini key stays in ignored `backend/.env`. The API is a local MVP without authentication; keep it on localhost until access control and deployment safeguards are added.
