@@ -29,7 +29,7 @@ it('submits the canonical Guardian request and requires HTTP 202', async () => {
   expect(url).toBe('/api/v1/verify');
   expect(init?.method).toBe('POST');
   expect(JSON.parse(init?.body as string)).toEqual({
-    text: '  Original wording.  ', mode: 'guardian', policy: 'strict', origin: 'agent_output',
+    text: '  Original wording.  ', mode: 'guardian', policy: 'strict', origin: 'agent_output', documents: [],
   });
 });
 

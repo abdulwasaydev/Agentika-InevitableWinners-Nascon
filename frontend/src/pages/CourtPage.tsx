@@ -3,24 +3,36 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Check, CornerDownLeft, FileText, LoaderCircle, ScanText, Scale, ShieldCheck, Sparkles } from 'lucide-react';
 import { useWorkspace } from '../Workspace';
 import { DEMO_TEXT } from '../api/demo';
-import type { Scenario } from '../api/types';
+import type { Scenario, SuppliedDocument } from '../api/types';
 import { Badge, ErrorPanel, formatDate, shortId } from '../components/ui';
 
 export function CourtPage({ guardian = false }: { guardian?: boolean }) {
   const { api, mode, recent, remember } = useWorkspace();
   const navigate = useNavigate();
   const [text, setText] = useState('');
+  const [comparePolicies, setComparePolicies] = useState(false);
+  const [documents, setDocuments] = useState<SuppliedDocument[]>([
+    { document_id: 'POLICY-1', title: '', version: '', effective_date: '', text: '' },
+    { document_id: 'POLICY-2', title: '', version: '', effective_date: '', text: '' },
+  ]);
   const [scenario, setScenario] = useState<Scenario>('review');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
+  function updateDocument(index: number, field: keyof SuppliedDocument, value: string) {
+    setDocuments(current => current.map((document, position) => position === index ? { ...document, [field]: value } : document));
+  }
   useEffect(() => () => controller.current?.abort(), []);
   async function submit(event: FormEvent) {
     event.preventDefault(); if (busy || !text.trim()) return;
     controller.current?.abort(); const request = new AbortController(); controller.current = request;
     setBusy(true); setError(null);
     try {
-      const result = await api.submit({ text, mode: guardian ? 'guardian' : 'claim_court', ...(mode === 'demo' ? { scenario } : {}) }, request.signal);
+      const supplied = comparePolicies ? documents.filter(document => document.text.trim()) : [];
+      if (comparePolicies && (!supplied.length || supplied.some(document => !document.document_id.trim() || !document.title.trim()))) {
+        setError('Add a policy document with an ID, title, and text.'); setBusy(false); return;
+      }
+      const result = await api.submit({ text, mode: guardian ? 'guardian' : 'claim_court', documents: supplied, ...(mode === 'demo' ? { scenario } : {}) }, request.signal);
       if (request.signal.aborted) return;
       remember(result.job_id, text); navigate(`/${guardian ? 'guardian' : 'jobs'}/${encodeURIComponent(result.job_id)}`);
     } catch (failure) { if (!request.signal.aborted) setError(failure instanceof Error ? failure.message : 'Submission failed.'); }
@@ -30,6 +42,7 @@ export function CourtPage({ guardian = false }: { guardian?: boolean }) {
     <div className="court-hero"><div><div className="eyebrow"><span className="tiny-line" />{guardian ? 'GUARDIAN / CONTROLLED RELEASE' : 'CLAIM COURT / NEW CASE'}</div><h1>{guardian ? <>A pause before<br /><em>the publish.</em></> : <>A little less certainty.<br /><em>A lot more evidence.</em></>}</h1><p>{guardian ? 'Watch the release gate hold a draft, route uncertainty to a human, and obey the latest verification decision.' : 'Put a passage on the record. Trace its claims to evidence, see what holds up, and give uncertainty a human hearing.'}</p></div><div className="hero-seal"><Scale size={39} strokeWidth={1.25} /><span>QUESTION.<br />VERIFY.<br />UNDERSTAND.</span><span className="seal-corner">↗</span></div></div>
     <div className="court-grid"><section className="panel submission-panel"><div className="panel-header"><div><span className="section-index">01</span><h2>{guardian ? 'Prepare a guarded draft' : 'Put a claim on the record'}</h2></div><Badge tone="neutral">{mode === 'demo' ? 'Synthetic case' : 'Text submission'}</Badge></div>
       <form onSubmit={submit}><div className="editor-label"><label htmlFor="claim-text">Text to verify</label>{mode === 'demo' && <button type="button" className="text-button example-button" onClick={() => setText(DEMO_TEXT)}><Sparkles size={13} />Use synthetic example</button>}</div><textarea id="claim-text" value={text} onChange={event => setText(event.target.value)} placeholder={'Paste an AI-generated answer, a paragraph, or a factual claim.\n\nWe’ll separate what can be checked from what needs a closer look.'} maxLength={8000} required aria-describedby="text-help" /><div className="editor-footer"><span id="text-help"><FileText size={13} />Original wording stays intact.</span><span>{text.length.toLocaleString()} / 8,000</span></div>
+      {mode === 'live' && !guardian && <div className="policy-input"><label className="policy-toggle"><input type="checkbox" checked={comparePolicies} onChange={event => setComparePolicies(event.target.checked)} /> Compare this advertised promise with supplied policy documents</label>{comparePolicies && <><p className="muted">Pasted policy text stays separate from the promise. Provide up to two versioned documents.</p>{documents.map((document, index) => <fieldset className="policy-document" key={index}><legend>Policy document {index + 1}</legend><div className="policy-meta"><label>Document ID<input value={document.document_id} maxLength={120} onChange={event => updateDocument(index, 'document_id', event.target.value)} /></label><label>Title<input value={document.title} maxLength={200} onChange={event => updateDocument(index, 'title', event.target.value)} /></label><label>Version<input value={document.version ?? ''} maxLength={80} onChange={event => updateDocument(index, 'version', event.target.value)} /></label><label>Effective date<input value={document.effective_date ?? ''} maxLength={80} onChange={event => updateDocument(index, 'effective_date', event.target.value)} /></label></div><label>Exact policy text<textarea value={document.text} maxLength={12000} onChange={event => updateDocument(index, 'text', event.target.value)} /></label></fieldset>)}</>}</div>}
       {mode === 'demo' && <div className="scenario-field"><label htmlFor="scenario">Synthetic scenario</label><select id="scenario" value={scenario} onChange={event => setScenario(event.target.value as Scenario)}><option value="review">Mixed findings · pending review</option><option value="pass">Supported · release permitted</option><option value="disputed">Disputed · hold for review</option><option value="insufficient">Insufficient evidence · hold</option><option value="annotate">Supported with caveats · annotate</option><option value="failed">Verification failed</option><option value="interrupted">Verification interrupted</option><option value="provider_unavailable">Provider unavailable</option></select></div>}
       {error && <ErrorPanel message={error} />}<div className="submit-row"><p>{mode === 'demo' ? 'A local simulation. Your text is never sent for verification.' : 'Submitted to your local FastAPI backend for verification.'}</p><button type="submit" className="button primary" disabled={!text.trim() || busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <ScanText size={17} />}{busy ? 'Opening case…' : 'Verify claims'}{!busy && <ArrowRight size={17} />}</button></div></form></section>
       <aside className="process-panel"><div className="eyebrow">THE STANDARD OF PROOF</div><h2>Every verdict<br />has a paper trail.</h2><p className="process-intro">An answer is a starting point. Evidence is what moves it forward.</p><ol className="process-steps"><li><span>1</span><div><strong>Separate the claims</strong><p>Turn a passage into statements that can be examined.</p></div></li><li><span>2</span><div><strong>Follow the evidence</strong><p>Read supporting and challenging records, with their limits.</p></div></li><li><span>3</span><div><strong>Keep a human in the loop</strong><p>Route unresolved claims to review before release.</p></div></li></ol><div className="process-footnote"><ShieldCheck size={17} /><span>Provisional findings are always labeled.</span></div></aside></div>

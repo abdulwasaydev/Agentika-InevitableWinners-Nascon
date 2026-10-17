@@ -5,6 +5,7 @@
   "policy": "strict",
   "origin": "agent_output",
   "input_text": "The fictional Aster Archive opened in 2020.",
+  "documents": [],
   "overall_action": "pass",
   "claims": [
     {

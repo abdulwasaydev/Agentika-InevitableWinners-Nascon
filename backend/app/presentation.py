@@ -3,7 +3,7 @@
 from .models import Claim, ClaimDependency, HumanReview, VerificationJob
 from .schemas import (
     AssessmentOut, ClaimDetail, ClaimSummary, EvidenceOut, JobOut,
-    LineageEdge, ReviewOut,
+    LineageEdge, ReviewOut, SuppliedDocumentOut,
 )
 
 
@@ -54,6 +54,10 @@ def job_out(job: VerificationJob) -> JobOut:
     return JobOut(
         id=job.id, status=job.status, mode=job.mode, policy=job.policy,
         origin=job.origin, input_text=job.input_text,
+        documents=[SuppliedDocumentOut(
+            document_id=d.document_id, title=d.title, version=d.version,
+            effective_date=d.effective_date, text=d.text,
+        ) for d in job.documents],
         overall_action=job.overall_action,
         claims=[claim_summary(c) for c in job.claims],
         created_at=job.created_at, updated_at=job.updated_at,

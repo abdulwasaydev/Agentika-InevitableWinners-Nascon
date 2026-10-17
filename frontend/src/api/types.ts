@@ -18,6 +18,7 @@ export interface Evidence {
   retrieved_at?: string;
   validity_status?: string;
 }
+export interface SuppliedDocument { document_id: string; title: string; version?: string | null; effective_date?: string | null; text: string }
 export interface ReviewInput { decision: Decision; rationale: string; correction?: string }
 export interface Review extends ReviewInput { review_id: string; claim_id: string; created_at: string }
 export interface Claim {
@@ -40,6 +41,7 @@ export interface Job {
   job_id: string;
   status: JobStatus;
   submitted_text: string;
+  documents?: SuppliedDocument[];
   overall_action: Action | null;
   claim_ids: string[];
   created_at: string;
@@ -48,7 +50,7 @@ export interface Job {
   revised_output?: string | null;
   error?: string | null;
 }
-export interface Submission { text: string; mode?: 'guardian' | 'claim_court'; scenario?: Scenario }
+export interface Submission { text: string; mode?: 'guardian' | 'claim_court'; scenario?: Scenario; documents?: SuppliedDocument[] }
 export interface VeritasApi {
   submit(input: Submission, signal?: AbortSignal): Promise<{ job_id: string }>;
   getJob(id: string, signal?: AbortSignal): Promise<Job>;

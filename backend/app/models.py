@@ -30,6 +30,21 @@ class VerificationJob(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     claims: Mapped[list["Claim"]] = relationship(back_populates="job", cascade="all, delete-orphan", order_by="Claim.start_offset")
+    documents: Mapped[list["SuppliedDocument"]] = relationship(back_populates="job", cascade="all, delete-orphan", order_by="SuppliedDocument.document_id")
+
+
+class SuppliedDocument(Base):
+    __tablename__ = "supplied_documents"
+    __table_args__ = (UniqueConstraint("job_id", "document_id", name="uq_supplied_document_job_id"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey("verification_jobs.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[str] = mapped_column(String(120))
+    title: Mapped[str] = mapped_column(String(200))
+    version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    effective_date: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    text: Mapped[str] = mapped_column(Text)
+    job: Mapped[VerificationJob] = relationship(back_populates="documents")
 
 
 class Claim(Base):

@@ -1,4 +1,4 @@
-import type { Action, Claim, Decision, Evidence, Finding, Job, JobStatus, Review, VeritasApi } from './types';
+import type { Action, Claim, Decision, Evidence, Finding, Job, JobStatus, Review, SuppliedDocument, VeritasApi } from './types';
 
 /** The sole boundary between the canonical FastAPI contract and the UI view model. */
 export class ApiError extends Error {
@@ -79,9 +79,13 @@ function parseJob(value: unknown): Job {
   if (claims.some(claim => claim.job_id !== id)) throw contractError();
   string(j.mode); string(j.policy); string(j.origin); string(j.updated_at);
   const errorCode = optionalString(j.error_code);
+  const documents: SuppliedDocument[] = array(j.documents).map(item => {
+    const d = record(item);
+    return { document_id: string(d.document_id), title: string(d.title), version: optionalString(d.version), effective_date: optionalString(d.effective_date), text: string(d.text) };
+  });
   return {
     job_id: id, status: (status === 'running' ? 'processing' : status) as JobStatus,
-    submitted_text: string(j.input_text), overall_action: action,
+    submitted_text: string(j.input_text), documents, overall_action: action,
     claim_ids: claims.map(claim => claim.claim_id), created_at: string(j.created_at),
     limitations: [], reason_codes: [],
     error: errorCode ? `Verification stopped: ${errorCode}. No output is approved.` : null,
@@ -120,6 +124,7 @@ export function createLiveApi(fetcher: typeof fetch = fetch): VeritasApi {
       const mode = input.mode ?? 'claim_court';
       const result = record(await request('/verify', signal, {
         text: input.text, mode, policy: 'strict', origin: mode === 'guardian' ? 'agent_output' : 'user_input',
+        documents: input.documents ?? [],
       }, 202));
       const id = string(result.job_id);
       if (!id.trim() || choice(result.status, ['queued']) !== 'queued' || string(result.poll_url) !== `/api/v1/jobs/${id}`) throw contractError();

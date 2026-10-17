@@ -10,13 +10,13 @@ Copy-Item backend\.env.example backend\.env
 
 Enter a connection string for a separate PostgreSQL database in the untracked `backend/.env`. Keep the Supabase credentials private. `DEMO_MODE=true` selects the deterministic synthetic corpus; it still requires PostgreSQL for jobs and reviews.
 
-Review [the initial migration](alembic/versions/0001_initial.py) and [its generated SQL](initial_schema.sql). Generate it again with:
+Review the [initial migration](alembic/versions/0001_initial.py), the [supplied-document migration](alembic/versions/0002_supplied_documents.py), and [generated SQL for a fresh database](initial_schema.sql). Generate SQL again with:
 
 ```powershell
 .\.venv\Scripts\python backend\scripts\export_sql.py
 ```
 
-Apply the reviewed SQL **manually** to a fresh, separate database. It enables row-level security on the Veritas tables and revokes access from Supabase's `anon` and `authenticated` roles when they exist; only the backend connects using the database password. The API checks the schema and Alembic revision; it returns 503 until the database is ready. No command here applies a remote migration or creates cloud resources.
+Apply the reviewed SQL **manually** to a fresh, separate database. If revision `0001_initial` is already applied, review and apply [only the incremental SQL](upgrade_0001_to_0002.sql) instead. It enables row-level security on the Veritas tables and revokes access from Supabase's `anon` and `authenticated` roles when they exist; only the backend connects using the database password. The API checks the schema and Alembic revision; it returns 503 until the database is ready. No command here applies a remote migration or creates cloud resources.
 
 Start the local API:
 

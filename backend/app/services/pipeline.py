@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from ..models import AgentAssessment, AuditEvent, Claim, ClaimDependency, Evidence, VerificationJob, utcnow
 from ..schemas import ClaimStatus, JobStatus
 from ..providers.live import ProviderFailure, live_extract
-from .extraction import ClaimLimitExceeded, extract_claims
+from .extraction import ClaimLimitExceeded, ExtractedClaim, extract_claims
 from .policy import PolicyClaim, release_action
 from .verification import verify_one_claim
 
@@ -31,14 +31,22 @@ def process_job(factory: sessionmaker[Session], job_id: UUID, *, max_claims: int
         with factory() as session:
             job = session.get(VerificationJob, job_id)
             assert job is not None
-            extracted = extract_claims(job.input_text, max_claims=max_claims) if demo_mode() else live_extract(job.input_text, max_claims=max_claims)
+            extracted = (
+                [ExtractedClaim(job.input_text, 0, len(job.input_text), "checkable", False)]
+                if job.documents else
+                extract_claims(job.input_text, max_claims=max_claims) if demo_mode() else
+                live_extract(job.input_text, max_claims=max_claims)
+            )
             parent_ids = [UUID(value) for value in job.parent_claim_ids]
             parents = list(session.scalars(select(Claim).where(Claim.id.in_(parent_ids)))) if parent_ids else []
             unresolved_parent = any(p.effective_status != ClaimStatus.supported for p in parents)
             policy_claims: list[PolicyClaim] = []
 
             for item in extracted:
-                verification = verify_one_claim(item, use_demo=demo_mode(), unresolved_parent=unresolved_parent)
+                verification = verify_one_claim(
+                    item, use_demo=demo_mode(), unresolved_parent=unresolved_parent,
+                    document_mode=bool(job.documents),
+                )
                 candidates = verification.evidence
                 support = verification.support
                 challenge = verification.challenge

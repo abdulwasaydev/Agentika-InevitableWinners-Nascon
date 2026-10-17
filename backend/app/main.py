@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, update
 
 from .db import database_ready, database_url, make_engine, session_factory
-from .models import AuditEvent, Claim, ClaimDependency, HumanReview, VerificationJob, utcnow
+from .models import AuditEvent, Claim, ClaimDependency, HumanReview, SuppliedDocument, VerificationJob, utcnow
 from .presentation import claim_detail, claim_summary, job_out, lineage_edge, review_out
 from .schemas import (
     ClaimDetail, ErrorOut, HealthOut, JobOut, JobStatus, LineageOut, ReviewQueueOut,
@@ -192,6 +192,12 @@ async def verify(request: VerificationRequest, http_request: Request) -> VerifyA
             status=JobStatus.queued, created_at=utcnow(), updated_at=utcnow(),
         )
         session.add(job)
+        for document in request.documents:
+            session.add(SuppliedDocument(
+                id=uuid4(), job_id=job.id, document_id=document.document_id,
+                title=document.title, version=document.version,
+                effective_date=document.effective_date, text=document.text,
+            ))
         session.commit()
     http_request.app.state.wake.set()
     return VerifyAccepted(job_id=job.id, status=JobStatus.queued, poll_url=f"/api/v1/jobs/{job.id}")

@@ -6,7 +6,7 @@ from pathlib import Path
 def test_initial_sql_protects_every_backend_table():
     sql = (Path(__file__).resolve().parents[1] / "initial_schema.sql").read_text().lower()
     tables = (
-        "alembic_version", "verification_jobs", "claims", "evidence",
+        "alembic_version", "verification_jobs", "supplied_documents", "claims", "evidence",
         "agent_assessments", "human_reviews", "claim_dependencies", "audit_events",
     )
     for table in tables:

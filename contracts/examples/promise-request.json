@@ -1,0 +1,22 @@
+{
+  "text": "Cancel anytime; access continues until the end of your paid month.",
+  "mode": "claim_court",
+  "policy": "strict",
+  "origin": "user_input",
+  "documents": [
+    {
+      "document_id": "EXAMPLE-TERMS-2026-10",
+      "title": "Fictional subscription terms",
+      "version": "2026-10",
+      "effective_date": "2026-10-01",
+      "text": "Members may cancel at any time. Cancellation stops the next renewal. Access continues through the end of the paid month."
+    },
+    {
+      "document_id": "EXAMPLE-FAQ-2026-10",
+      "title": "Fictional cancellation FAQ",
+      "version": "2026-10",
+      "effective_date": "2026-10-01",
+      "text": "Cancel from account settings at any time. Your current paid period remains available after cancellation."
+    }
+  ]
+}

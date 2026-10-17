@@ -456,6 +456,13 @@
             "title": "Created At",
             "type": "string"
           },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/SuppliedDocumentOut"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
           "error_code": {
             "anyOf": [
               {
@@ -724,6 +731,112 @@
         "title": "ReviewResult",
         "type": "object"
       },
+      "SuppliedDocumentIn": {
+        "properties": {
+          "document_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Document Id",
+            "type": "string"
+          },
+          "effective_date": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Date"
+          },
+          "text": {
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "text"
+        ],
+        "title": "SuppliedDocumentIn",
+        "type": "object"
+      },
+      "SuppliedDocumentOut": {
+        "properties": {
+          "document_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Document Id",
+            "type": "string"
+          },
+          "effective_date": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Date"
+          },
+          "text": {
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "text"
+        ],
+        "title": "SuppliedDocumentOut",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -766,6 +879,14 @@
       },
       "VerificationRequest": {
         "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/SuppliedDocumentIn"
+            },
+            "maxItems": 3,
+            "title": "Documents",
+            "type": "array"
+          },
           "mode": {
             "default": "claim_court",
             "pattern": "^(guardian|claim_court)$",

@@ -38,17 +38,40 @@ class ReviewDecision(StrEnum):
     correct = "correct"
 
 
+class SuppliedDocumentIn(BaseModel):
+    document_id: Annotated[str, Field(min_length=1, max_length=120)]
+    title: Annotated[str, Field(min_length=1, max_length=200)]
+    version: Annotated[str | None, Field(max_length=80)] = None
+    effective_date: Annotated[str | None, Field(max_length=80)] = None
+    text: Annotated[str, Field(min_length=1, max_length=12000)]
+
+    @model_validator(mode="after")
+    def nonblank_fields(self):
+        if not all((self.document_id.strip(), self.title.strip(), self.text.strip())):
+            raise ValueError("document ID, title and text must contain non-whitespace characters")
+        return self
+
+
+class SuppliedDocumentOut(SuppliedDocumentIn):
+    pass
+
+
 class VerificationRequest(BaseModel):
     text: Annotated[str, Field(min_length=1, max_length=8000)]
     mode: Annotated[str, Field(pattern="^(guardian|claim_court)$")] = "claim_court"
     policy: Annotated[str, Field(pattern="^(strict|balanced)$")] = "strict"
     origin: Annotated[str, Field(min_length=1, max_length=80)] = "user_input"
     parent_claim_ids: list[UUID] = Field(default_factory=list, max_length=20)
+    documents: list[SuppliedDocumentIn] = Field(default_factory=list, max_length=3)
 
     @model_validator(mode="after")
     def nonblank_text(self):
         if not self.text.strip():
             raise ValueError("text must contain non-whitespace characters")
+        if len({doc.document_id for doc in self.documents}) != len(self.documents):
+            raise ValueError("document IDs must be unique within a submission")
+        if sum(len(doc.text) for doc in self.documents) > 24000:
+            raise ValueError("combined document text exceeds 24000 characters")
         return self
 
 
@@ -122,6 +145,7 @@ class JobOut(BaseModel):
     policy: str
     origin: str
     input_text: str
+    documents: list[SuppliedDocumentOut] = Field(default_factory=list)
     overall_action: ReleaseAction | None = None
     claims: list[ClaimSummary]
     created_at: datetime
