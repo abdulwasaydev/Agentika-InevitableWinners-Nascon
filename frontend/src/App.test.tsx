@@ -59,14 +59,17 @@ it('accepts manually supplied policy text without a fictional picker or a prefil
   expect(api.submit).toHaveBeenCalledTimes(1);
 });
 
-it('submits the official GitHub policy selection without synthetic fallback', async () => {
+it('starts without a company preset or suggested claims and keeps live errors visible', async () => {
   const user = userEvent.setup();
   const api: VeritasApi = { submit: vi.fn().mockRejectedValue(new Error('LLM not configured')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
   mount('/', api, 'live');
-  await user.click(screen.getByRole('checkbox', { name: /Scan GitHub's privacy statement/ }));
-  await user.click(screen.getByRole('button', { name: /GitHub never uses personal data/ }));
-  await user.click(screen.getByRole('button', { name: 'Scan official policy' }));
-  await waitFor(() => expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ policy_source: 'github_privacy', documents: [] }), expect.anything()));
+  expect(screen.queryByRole('checkbox', { name: /Scan GitHub/ })).not.toBeInTheDocument();
+  expect(screen.queryByText('Test three claims live')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Text to verify')).toHaveValue('');
+  expect(screen.getByLabelText('Full privacy policy (optional)')).toHaveValue('');
+  await user.type(screen.getByLabelText('Text to verify'), 'A claim to investigate.');
+  await user.click(screen.getByRole('button', { name: 'Verify claims' }));
+  await waitFor(() => expect(api.submit).toHaveBeenCalledWith(expect.not.objectContaining({ policy_source: 'github_privacy' }), expect.anything()));
   expect(await screen.findByRole('alert')).toHaveTextContent('LLM not configured');
 });
 
@@ -74,16 +77,14 @@ it('submits a full pasted GitHub policy and retains it for the next claim in thi
   const user = userEvent.setup();
   const api: VeritasApi = { submit: vi.fn().mockRejectedValue(new Error('Provider unavailable')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
   const view = mount('/', api, 'live');
-  await user.click(screen.getByRole('checkbox', { name: /Scan GitHub's privacy statement/ }));
   const policy = 'GitHub privacy policy text. '.repeat(500);
-  fireEvent.change(screen.getByLabelText('Paste the entire GitHub privacy statement (optional)'), { target: { value: policy } });
-  await user.click(screen.getByRole('button', { name: /GitHub collects email addresses/ }));
+  fireEvent.change(screen.getByLabelText('Full privacy policy (optional)'), { target: { value: policy } });
+  await user.type(screen.getByLabelText('Text to verify'), 'An account uses email addresses.');
   await user.click(screen.getByRole('button', { name: 'Scan pasted policy' }));
   await waitFor(() => expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ policy_source: 'github_privacy', policy_text: policy.trim() }), expect.anything()));
   view.unmount();
   mount('/', api, 'live');
-  await user.click(screen.getByRole('checkbox', { name: /Scan GitHub's privacy statement/ }));
-  expect(screen.getByLabelText('Paste the entire GitHub privacy statement (optional)')).toHaveValue(policy);
+  expect(screen.getByLabelText('Full privacy policy (optional)')).toHaveValue(policy);
 });
 
 it('shows separate in-favor and against notes with the cited policy passage', async () => {

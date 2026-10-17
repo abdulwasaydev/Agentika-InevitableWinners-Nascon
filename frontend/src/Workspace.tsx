@@ -11,7 +11,9 @@ interface Workspace {
 const Context = createContext<Workspace | null>(null);
 function loadRecent(mode: Mode): RecentCase[] {
   try {
-    const stored: unknown = JSON.parse(localStorage.getItem(`veritas.recent.${mode}`) ?? '[]');
+    const storage = mode === 'live' ? sessionStorage : localStorage;
+    const key = mode === 'live' ? 'veritas.recent.live.session' : `veritas.recent.${mode}`;
+    const stored: unknown = JSON.parse(storage.getItem(key) ?? '[]');
     return Array.isArray(stored) ? stored.filter((item): item is RecentCase => item && typeof item.id === 'string' && typeof item.text === 'string' && typeof item.created === 'string').slice(0, 20) : [];
   } catch { return []; }
 }
@@ -21,7 +23,10 @@ export function WorkspaceProvider({ children, initialMode, liveApi }: { children
   const [version, setVersion] = useState(0);
   const live = useMemo(() => liveApi ?? createLiveApi(), [liveApi]);
   const demo = useMemo(() => createDemoApi(typeof localStorage === 'undefined' ? undefined : localStorage), []);
-  function persist(next: RecentCase[], target: Mode) { try { localStorage.setItem(`veritas.recent.${target}`, JSON.stringify(next)); } catch { /* Browser storage is optional. */ } }
+  function persist(next: RecentCase[], target: Mode) { try {
+    const storage = target === 'live' ? sessionStorage : localStorage;
+    storage.setItem(target === 'live' ? 'veritas.recent.live.session' : `veritas.recent.${target}`, JSON.stringify(next));
+  } catch { /* Browser storage is optional. */ } }
   const value: Workspace = {
     mode, api: mode === 'demo' ? demo : live, recent, version,
     changeMode(next) { setMode(next); setRecent(loadRecent(next)); setVersion(v => v + 1); },
