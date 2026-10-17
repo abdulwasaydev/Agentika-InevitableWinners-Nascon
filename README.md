@@ -224,6 +224,12 @@ The integrated MVP supports a deterministic comparator for supplied promises and
 
 ## Deployment handoff: Clouds by Alternate Futures
 
+**Packaging update (2026-10-17):** the root Dockerfile and authenticated production
+entry point are now implemented. See [deployment setup](docs/DEPLOYMENT.md) for
+current commands, runtime secrets, judge login, and verification requirements.
+The ordered handoff below records the original prerequisites. A public cloud
+deployment has not yet been verified.
+
 This repository is **running locally, not deployed**. The local link is `http://127.0.0.1:5173/` while Vite and FastAPI are running on this computer; it is not a public URL. There is currently no Dockerfile, production static-file route, authentication, or provider-specific cloud configuration. A new agent should use the following order when the user authorizes deployment:
 
 1. From the repository root, read `AGENTS.md`, `docs/DEMO_READINESS.md`, and `backend/README.md`; run `git status --short --branch`, `git fetch origin`, and confirm `arman/backend-foundation` tracks `origin/arman/backend-foundation`. Preserve the working tree and Wasay's original frontend history. Do not merge into `main`.

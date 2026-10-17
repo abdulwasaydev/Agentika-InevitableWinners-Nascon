@@ -1,0 +1,17 @@
+.git
+.venv
+.local-tools
+.deployment-local
+**/node_modules
+**/.pnpm-store
+**/__pycache__
+**/.pytest_cache
+**/.pytest_tmp*
+**/.env
+**/.env.*
+!**/.env.example
+frontend/dist
+backend/data
+backend/tests
+frontend/src/**/*.test.*
+*.log

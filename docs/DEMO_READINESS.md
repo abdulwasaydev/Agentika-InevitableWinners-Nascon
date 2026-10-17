@@ -31,3 +31,15 @@ Updated 2026-10-17. Work remains on `arman/backend-foundation`; the README was f
 The backend accepts no in-memory fallback. An unavailable real API must remain an error in live frontend mode. Do not describe generated or fictional passages as live retrieval.
 
 **Current local state:** Supabase, the downloaded policy snapshot, and Gemini are configured on this machine. A fresh clone needs its own ignored `backend/.env`; it needs a policy download only for the downloaded-source option. See `docs/DEMO_SCRIPT.md` for exact clicks. The full paste is stored in Supabase and in browser session storage for repeated claims. The separate supplied-document deterministic comparison needs no Gemini key. An unavailable provider or exhausted free quota can fail a new scan; neither grants release automatically.
+# Deployment packaging checkpoint — 2026-10-17
+
+The root Dockerfile now builds the frontend and runs the existing FastAPI app
+behind an authenticated same-origin gateway. See [DEPLOYMENT.md](DEPLOYMENT.md).
+Local production-entry-point checks passed against the configured separate Veritas
+database: health ready, unauthenticated UI/API 401, authenticated frontend/deep link
+and review API 200, unknown API 404. Backend: 42 passed, one optional test skipped;
+frontend: 28 passed, typecheck and production build passed. Gateway checks include
+access control, lifespan, CSRF protection, missing assets, and secret-path rejection.
+Docker is unavailable on the local machine, so the container build and hosted
+end-to-end flow still require cloud verification. No public URL is verified yet.
+

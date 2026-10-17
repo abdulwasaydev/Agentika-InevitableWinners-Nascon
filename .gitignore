@@ -8,3 +8,5 @@ pytest-cache-files-*/
 backend/.env
 backend/data/
 *.egg-info/
+.local-tools/
+.deployment-local/
