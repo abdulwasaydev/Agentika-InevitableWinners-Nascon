@@ -44,7 +44,7 @@ For optional general web-search calls, set `DEMO_MODE=false`, `BRAVE_SEARCH_API_
 
 ## Official GitHub privacy policy scan
 
-The live UI can scan [GitHub's General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). Download its current Markdown from the [official GitHub Docs Article API](https://docs.github.com/en/get-started/using-github-docs/github-docs-api) before the demo:
+The API also supports a downloaded scan of [GitHub's General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). The generic live form now uses the pasted-document path. To use the API's downloaded-source path, download its current Markdown from the [official GitHub Docs Article API](https://docs.github.com/en/get-started/using-github-docs/github-docs-api):
 
 ```powershell
 .\.venv\Scripts\python backend\scripts\download_github_policy.py
@@ -52,17 +52,17 @@ The live UI can scan [GitHub's General Privacy Statement](https://docs.github.co
 
 This writes a SHA-256-checked snapshot and retrieval metadata under ignored `backend/data/`; refresh it when the published statement changes. The backend ranks passages across the whole snapshot and sends at most eight relevant passages plus the claim to separate support and challenge LLM roles. Each role's notes appear beside exact quotes and the official source link. Only cited excerpts and analysis records are persisted in PostgreSQL for this downloaded-source path, not the entire snapshot. Retrieval can miss relevant passages, so a supported finding requires human review before Guardian permits release. A contradiction or insufficient finding remains held under strict policy.
 
-To paste the entire policy yourself, select **Live API** → **Policy Check** → **Scan GitHub's privacy statement**, then paste 10,000 to 100,000 characters into the full-document field. The UI keeps the draft in browser session storage so you can try three claims without pasting it again. This path sends `policy_text` alongside one claim, persists that full text in Supabase, and labels its evidence as **user-pasted, source unverified** with no authenticated URL. An empty full-document field uses the downloaded official snapshot instead. No new SQL migration is needed. The full paste is sent to Gemini in selected passages; do not paste private material.
+To paste the entire policy yourself, select **Live API** → **Policy Check**, type a claim, and paste 10,000 to 100,000 characters into **Full privacy policy**. The UI has no GitHub preset or suggested claims. It keeps the draft in browser session storage so you can try multiple claims without pasting it again. This path sends `policy_text` alongside one claim, persists that full text in Supabase, and labels its evidence as **user-pasted, source unverified** with no authenticated URL. An empty field submits a general text check; the downloaded official snapshot path remains available through the API contract. No new SQL migration is needed. Selected passages, rather than the entire paste, are sent to Gemini; do not paste private material.
 
 For this scan, set these fields **only** in ignored `backend/.env` and restart the API:
 
 ```dotenv
 LLM_PROVIDER=gemini
 LLM_API_KEY=YOUR_KEY_ENTERED_LOCALLY
-LLM_MODEL=gemini-3.8-flash
+LLM_MODEL=gemini-3.5-flash-lite
 ```
 
-Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey) and use a model available to your project; Google's [pricing page](https://ai.google.dev/gemini-api/docs/pricing) currently lists a free tier for `gemini-3.8-flash`, subject to its limits and your account settings. `LLM_API_URL` is unused with `LLM_PROVIDER=gemini`. `BRAVE_SEARCH_API_KEY` is not needed for this document path, and `DEMO_MODE=true` may remain enabled for the separate fictional corpus. The policy scan always calls the configured LLM; it never falls back to synthetic success. Each scan makes two bounded model calls. Missing keys, source snapshots, provider errors, and quotes that do not match the downloaded text fail closed. Do not enter secrets in the frontend or chat. No new database migration is required.
+Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey) and use a model available to your project; Google's [pricing page](https://ai.google.dev/gemini-api/docs/pricing) lists a free tier for `gemini-3.5-flash-lite`, subject to your project's [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits). `LLM_API_URL` is unused with `LLM_PROVIDER=gemini`. `BRAVE_SEARCH_API_KEY` is not needed for this document path, and `DEMO_MODE=true` may remain enabled for the separate fictional corpus. The policy scan always calls the configured LLM; it never falls back to synthetic success. Each scan makes two bounded model calls, so four claims require about eight model calls. Missing keys, source snapshots, provider errors, and quotes that do not match the downloaded text fail closed. Do not enter secrets in the frontend or chat. No new database migration is required.
 
 Run local checks:
 
