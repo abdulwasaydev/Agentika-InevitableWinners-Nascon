@@ -60,7 +60,7 @@ This section records the next demo milestone; it does not assert that the three 
 
 **Instruction to Codex:** When asked to implement this README, execute the numbered prompts below in order in the same session. These are successive implementation tasks, not prompts for the user to paste separately. Inspect and reuse working code; skip rebuilding a capability only after verifying it meets the acceptance criteria. Do not stop after planning or after the first milestone.
 
-Stay on the current `arman/backend-foundation` branch. Preserve uncommitted work and Wasay's original branch. The user has authorized implementation across frontend and backend. Do not deploy, spend credits, apply remote migrations, or merge to main automatically.
+Stay on the current `arman/backend-foundation` branch. Preserve uncommitted work and Wasay's archived frontend commit. The user has authorized implementation across frontend and backend. Do not deploy, spend credits, apply remote migrations, or merge to main automatically.
 
 After **every prompt**:
 1. Run the smallest meaningful functional check for that milestone, not merely a compilation check.
@@ -162,11 +162,11 @@ Locally, the frontend proxies `/api` to `http://localhost:8000`. Planned product
 | Owner | Writable scope |
 | --- | --- |
 | Arman / integration branch | Backend, frontend, contracts, shared fixtures, and documentation on `arman/backend-foundation` |
-| Abdul Wasay | Original frontend work preserved on `wasay/frontend-foundation` |
+| Abdul Wasay | Original frontend work preserved at tag `archive/wasay-frontend-foundation-20261017` |
 
 The frontend calls FastAPI for application data and review decisions; it does not access the database or AI/search providers directly. All database and provider credentials stay on the backend.
 
-Wasay's frontend files were copied selectively into Arman's branch without modifying his branch or history. Keep new integration work on `arman/backend-foundation`. Do not force-push, discard another person's work, or merge into `main` automatically. Follow [AGENTS.md](AGENTS.md).
+Wasay's frontend files were copied selectively into Arman's branch. His checkpoint history is retained under an archive tag after the user-requested branch cleanup. Keep new integration work on `arman/backend-foundation`. Do not force-push, discard another person's work, or merge into `main` automatically. Follow [AGENTS.md](AGENTS.md).
 
 ## Local-first build plan
 
@@ -221,6 +221,22 @@ The integrated MVP supports a deterministic comparator for supplied promises and
 **Verified locally:** the GitHub statement was downloaded from the official Docs API and hash-checked. With a Gemini key stored only in ignored `backend/.env`, three full-policy paste claims ran through the frontend proxy and Supabase. The absolute no-training claim was challenged and held after human dispute; the account-email claim was supported and passed Guardian after human approval; the service-provider claim was supported and remains pending review. Stored quotes matched the pasted text, both agent notes were present, and jobs/reviews/release decisions survived a FastAPI restart. The downloaded-source path was also exercised with two real claims. A provider or source failure stays explicit and cannot become synthetic success. The MVP remains local-only and unauthenticated.
 
 **Local start:** on a fresh setup, copy `backend/.env.example` to ignored `backend/.env`; do not overwrite an existing `.env`. Enter the separate Veritas PostgreSQL URL and Gemini settings described in [backend setup](backend/README.md). Apply reviewed [SQL](backend/initial_schema.sql) manually in Supabase only if the project is fresh. For the downloaded-source option, run `.\.venv\Scripts\python backend\scripts\download_github_policy.py` from the repository root; a full policy paste works without that local snapshot. Run `cd backend; ..\.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` and `cd frontend; corepack pnpm dev` in separate PowerShell terminals. Open `http://127.0.0.1:5173/` in **Live API** mode. `/health` must show `database_ready: true`. No extra database migration is needed for this path. Keep credentials in ignored local files; never paste them into chat.
+
+## Deployment handoff: Clouds by Alternate Futures
+
+This repository is **running locally, not deployed**. The local link is `http://127.0.0.1:5173/` while Vite and FastAPI are running on this computer; it is not a public URL. There is currently no Dockerfile, production static-file route, authentication, or provider-specific cloud configuration. A new agent should use the following order when the user authorizes deployment:
+
+1. From the repository root, read `AGENTS.md`, `docs/DEMO_READINESS.md`, and `backend/README.md`; run `git status --short --branch`, `git fetch origin`, and confirm `arman/backend-foundation` tracks `origin/arman/backend-foundation`. Preserve the working tree and Wasay's original frontend history. Do not merge into `main`.
+2. Confirm the **separate Veritas** Supabase project has the reviewed schema at Alembic revision `0003_comparison`. For a fresh project, the user manually applies `backend/initial_schema.sql`; for an older revision, use the reviewed incremental SQL in `backend/`. Never run a remote migration automatically or use SocietyOS.
+3. Prepare a private runtime environment from `backend/.env.example`: `DATABASE_URL` must use `postgresql+psycopg://` with TLS; set `LLM_PROVIDER=gemini`, `LLM_API_KEY`, and an available `LLM_MODEL`. Store values in the cloud provider's secret store, not Git, frontend variables, build logs, or chat. `BRAVE_SEARCH_API_KEY` is optional for general search; the GitHub document scan does not require it.
+4. Choose the demo source: paste the complete GitHub policy in the UI (stored in Supabase as user-supplied, unverified text), or refresh `backend/data/github_privacy_statement.md` and its metadata with `python backend/scripts/download_github_policy.py` before packaging. That ignored snapshot must be included as a paired file and metadata if the hosted downloaded-source option is offered; the app never downloads it implicitly.
+5. Package Python 3.12, `backend/requirements.txt`, and the FastAPI app; build the React app with Node 22.12+ and `corepack pnpm --dir frontend build`. The Vite `/api` proxy is development-only. For production, serve the built frontend and `/api` on one HTTPS origin through an app server/reverse proxy, or configure `FRONTEND_ORIGINS` and a deliberate API base URL if using separate origins. Implement and test the chosen routing before publishing.
+6. Add access control before any public exposure. The current API has no user authentication and accepts claim text and whole documents; its `DEMO_MODE=true` also permits an explicitly labeled synthetic path. Decide who can submit, review, and view stored text. Verify that secrets never reach client bundles or HTTP responses.
+7. On the selected cloud, create the service only after the user approves deployment and the provider's actual build/start/network settings are known. Inject secrets, set the HTTPS origin and port, and check outbound access to Supabase and Gemini. Do not assume the provider's commands, credit balance, or public URL.
+8. Check `GET /health` for `database_ready: true`, then exercise one real submission through the hosted frontend: inspect exact evidence and both agent notes, record a review, and confirm Guardian obeys the backend's `pass`/`hold_for_review` decision. Restart the service and confirm the job and review persist in Supabase. A failed real request must remain an error, never synthetic success.
+9. Record the actual cloud commands/settings, public HTTPS URL, observed checks, costs/limits, and remaining risks in `docs/DEMO_READINESS.md`. Commit and push deployment work to `arman/backend-foundation`; request explicit approval before any merge to `main`.
+
+For local testing now, use the exact PowerShell commands in **Current recorded status** above. In separate terminals, start FastAPI from `backend` and Vite from `frontend`; open `http://127.0.0.1:5173/`, select **Live API → Policy Check → Scan GitHub's privacy statement**, paste the full document, and submit one claim at a time. The browser keeps the pasted draft for the next two claims in that session.
 
 ## Event requirements
 
