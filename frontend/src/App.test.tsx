@@ -45,7 +45,7 @@ it('prefills fictional policy inputs without injecting a verdict or deleting bac
   await user.selectOptions(screen.getByLabelText('Try a fictional subscription case'), 'exception');
   expect(screen.getByLabelText('Advertised promise')).toHaveValue('Full refund within 30 days.');
   expect(screen.getByDisplayValue('FICTIONAL-EXCEPTION-REFUNDS-v2')).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Verify claims' }));
+  await user.click(screen.getByRole('button', { name: 'Compare documents' }));
   await waitFor(() => expect(api.submit).toHaveBeenCalled());
   const submitted = api.submit.mock.calls[0][0];
   expect(submitted.documents).toHaveLength(2);
