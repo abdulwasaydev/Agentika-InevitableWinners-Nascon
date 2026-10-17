@@ -247,7 +247,8 @@ def submit_review(claim_id: UUID, payload: ReviewRequest, request: Request) -> R
             effective, needs_review = "pending_review", True
         claim.effective_status = effective
         claim.needs_review = needs_review
-        claim.corrected_text = payload.corrected_text
+        if payload.corrected_text is not None:
+            claim.corrected_text = payload.corrected_text
         review = HumanReview(
             id=uuid4(), claim_id=claim.id, decision=payload.decision,
             reviewer_id=payload.reviewer_id, rationale=payload.rationale,

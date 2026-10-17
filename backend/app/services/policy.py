@@ -50,7 +50,7 @@ def evaluate_claim(*, checkability: str, support: bool, challenge: bool, evidenc
 def apply_review(provisional: ClaimStatus, decision: ReviewDecision) -> tuple[ClaimStatus, bool]:
     if decision == ReviewDecision.approve:
         # Review is provenance, not independent proof; approval cannot upgrade an unsupported finding.
-        return provisional, False
+        return provisional, provisional == ClaimStatus.pending_review
     if decision == ReviewDecision.dispute or decision == ReviewDecision.correct:
         return ClaimStatus.disputed, False
     if decision == ReviewDecision.insufficient:
