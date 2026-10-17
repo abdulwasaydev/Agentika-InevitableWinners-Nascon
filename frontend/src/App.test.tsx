@@ -31,46 +31,46 @@ it('shows live failure without claiming synthetic verification', async () => {
   const user = userEvent.setup();
   const api = { submit: vi.fn().mockRejectedValue(new Error('Live API unavailable')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
   mount('/', api, 'live');
-  await user.type(screen.getByLabelText('Text to verify'), 'A live claim.');
-  await user.click(screen.getByRole('button', { name: 'Verify claims' }));
+  await user.type(screen.getByLabelText('Claim to check'), 'A live claim.');
+  fireEvent.change(screen.getByLabelText('Full privacy policy'), { target: { value: 'Privacy policy text. '.repeat(500) } });
+  await user.click(screen.getByRole('button', { name: 'Scan pasted policy' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Live API unavailable');
   expect(screen.queryByText('Demo mode — simulated verification')).not.toBeInTheDocument();
   expect(screen.queryByText('Extracted claims')).not.toBeInTheDocument();
 });
 
-it('accepts manually supplied policy text without a fictional picker or a prefilled verdict', async () => {
+it('accepts one full policy without asking for versioned documents', async () => {
   const user = userEvent.setup();
   const api = { submit: vi.fn().mockRejectedValue(new Error('Database unavailable')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
   mount('/', api, 'live');
   expect(screen.queryByLabelText('Try a fictional subscription case')).not.toBeInTheDocument();
-  await user.click(screen.getByRole('checkbox', { name: /Compare this advertised promise/ }));
-  await user.type(screen.getByLabelText('Advertised promise'), 'An account can be closed at any time.');
-  await user.type(screen.getAllByLabelText('Title')[0], 'Account policy');
-  await user.type(screen.getAllByLabelText('Exact policy text')[0], 'You can close your account at any time.');
-  await user.click(screen.getByRole('button', { name: 'Compare documents' }));
+  expect(screen.queryByRole('checkbox', { name: /Compare this advertised promise/ })).not.toBeInTheDocument();
+  expect(screen.queryByText('Policy document 2')).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText('Claim to check'), 'An account can be closed at any time.');
+  expect(screen.getByRole('button', { name: 'Scan pasted policy' })).toBeDisabled();
+  const policy = 'Accounts can be closed at any time. '.repeat(350);
+  fireEvent.change(screen.getByLabelText('Full privacy policy'), { target: { value: policy } });
+  await user.click(screen.getByRole('button', { name: 'Scan pasted policy' }));
   await waitFor(() => expect(api.submit).toHaveBeenCalled());
   const submitted = api.submit.mock.calls[0][0];
-  expect(submitted.documents).toHaveLength(1);
-  expect(submitted.documents[0].text).toContain('close your account');
-  expect(submitted).not.toHaveProperty('comparison_result');
+  expect(submitted.policy_text).toBe(policy.trim());
+  expect(submitted).not.toHaveProperty('documents');
   expect(await screen.findByRole('alert')).toHaveTextContent('Database unavailable');
   await user.click(screen.getByRole('button', { name: 'Clear form' }));
-  expect(screen.getByLabelText('Text to verify')).toHaveValue('');
+  expect(screen.getByLabelText('Claim to check')).toHaveValue('');
+  expect(screen.getByLabelText('Full privacy policy')).toHaveValue('');
   expect(api.submit).toHaveBeenCalledTimes(1);
 });
 
-it('starts without a company preset or suggested claims and keeps live errors visible', async () => {
-  const user = userEvent.setup();
-  const api: VeritasApi = { submit: vi.fn().mockRejectedValue(new Error('LLM not configured')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
+it('starts without a company preset or suggested claims', () => {
+  const api: VeritasApi = { submit: vi.fn(), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
   mount('/', api, 'live');
   expect(screen.queryByRole('checkbox', { name: /Scan GitHub/ })).not.toBeInTheDocument();
   expect(screen.queryByText('Test three claims live')).not.toBeInTheDocument();
-  expect(screen.getByLabelText('Text to verify')).toHaveValue('');
-  expect(screen.getByLabelText('Full privacy policy (optional)')).toHaveValue('');
-  await user.type(screen.getByLabelText('Text to verify'), 'A claim to investigate.');
-  await user.click(screen.getByRole('button', { name: 'Verify claims' }));
-  await waitFor(() => expect(api.submit).toHaveBeenCalledWith(expect.not.objectContaining({ policy_source: 'github_privacy' }), expect.anything()));
-  expect(await screen.findByRole('alert')).toHaveTextContent('LLM not configured');
+  expect(screen.getByLabelText('Claim to check')).toHaveValue('');
+  expect(screen.getByLabelText('Full privacy policy')).toHaveValue('');
+  expect(screen.getByRole('button', { name: 'Scan pasted policy' })).toBeDisabled();
+  expect(api.submit).not.toHaveBeenCalled();
 });
 
 it('submits a full pasted GitHub policy and retains it for the next claim in this session', async () => {
@@ -78,13 +78,13 @@ it('submits a full pasted GitHub policy and retains it for the next claim in thi
   const api: VeritasApi = { submit: vi.fn().mockRejectedValue(new Error('Provider unavailable')), getJob: vi.fn(), getClaim: vi.fn(), listReviews: vi.fn(), review: vi.fn() };
   const view = mount('/', api, 'live');
   const policy = 'GitHub privacy policy text. '.repeat(500);
-  fireEvent.change(screen.getByLabelText('Full privacy policy (optional)'), { target: { value: policy } });
-  await user.type(screen.getByLabelText('Text to verify'), 'An account uses email addresses.');
+  fireEvent.change(screen.getByLabelText('Full privacy policy'), { target: { value: policy } });
+  await user.type(screen.getByLabelText('Claim to check'), 'An account uses email addresses.');
   await user.click(screen.getByRole('button', { name: 'Scan pasted policy' }));
   await waitFor(() => expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ policy_source: 'github_privacy', policy_text: policy.trim() }), expect.anything()));
   view.unmount();
   mount('/', api, 'live');
-  expect(screen.getByLabelText('Full privacy policy (optional)')).toHaveValue(policy);
+  expect(screen.getByLabelText('Full privacy policy')).toHaveValue(policy);
 });
 
 it('shows separate in-favor and against notes with the cited policy passage', async () => {

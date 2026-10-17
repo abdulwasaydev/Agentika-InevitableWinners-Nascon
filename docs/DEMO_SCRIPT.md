@@ -8,7 +8,7 @@
 4. Return to **Policy Check**; the pasted text should still be present. Type a second claim about account email collection and scan again. A prior local run found cited support. Approve it with a written rationale only if the fresh quote directly supports it; Guardian should change from hold to pass.
 5. Return again and type a third claim about sharing data with service providers. The prior local run found cited support and left it pending human review. Check both agent notes and the backend release gate. Fresh model output can vary; inspect each new result rather than assuming these outcomes.
 
-If the model call fails, show the explicit failure. Do not switch to synthetic results while describing a real-policy scan. Leaving the paste field empty submits a general text check; it does not scan the locally downloaded GitHub snapshot.
+If the model call fails, show the explicit failure. Do not switch to synthetic results while describing a real-policy scan. The live Policy Check form requires a full pasted document; it never silently uses the downloaded snapshot.
 
 ## Explicit simulation
 
