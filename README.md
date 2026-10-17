@@ -224,20 +224,20 @@ The integrated MVP supports a deterministic comparator for supplied promises and
 
 ## Deployment handoff: Clouds by Alternate Futures
 
-**Packaging update (2026-10-17):** the root Dockerfile and authenticated production
+**Packaging update (2026-10-17):** the root Dockerfile and public production
 entry point are now implemented. See [deployment setup](docs/DEPLOYMENT.md) for
-current commands, runtime secrets, judge login, and verification requirements.
-The ordered handoff below records the original prerequisites. A public cloud
-deployment has not yet been verified.
+current commands, runtime secrets, and verification requirements. The owner has
+explicitly requested removing the shared judge login; rebuilding and redeploying
+this version makes the UI and API public without credentials.
 
-This repository is **running locally, not yet verified on the cloud**. The local link is `http://127.0.0.1:5173/` while Vite and FastAPI are running on this computer; it is not a public URL. Docker packaging, production static serving, and a shared judge login are implemented. A new agent should use the following order when the user authorizes deployment:
+The existing cloud deployment has passed HTTPS, database readiness, and authenticated UI/API checks. Two hosted live verification attempts still failed with `PROVIDER_ERROR`; do not claim that live verification is fixed. Public access must be checked again after the updated image is deployed. The local link is `http://127.0.0.1:5173/` while Vite and FastAPI are running on this computer. A new agent should use the following order when the user authorizes deployment:
 
 1. From the repository root, read `AGENTS.md`, `docs/DEMO_READINESS.md`, and `backend/README.md`; run `git status --short --branch`, `git fetch origin`, and confirm `arman/backend-foundation` tracks `origin/arman/backend-foundation`. Preserve the working tree and Wasay's original frontend history. Do not merge into `main`.
 2. Confirm the **separate Veritas** Supabase project has the reviewed schema at Alembic revision `0003_comparison`. For a fresh project, the user manually applies `backend/initial_schema.sql`; for an older revision, use the reviewed incremental SQL in `backend/`. Never run a remote migration automatically or use SocietyOS.
 3. Prepare a private runtime environment from `backend/.env.example`: `DATABASE_URL` must use `postgresql+psycopg://` with TLS; set `LLM_PROVIDER=gemini`, `LLM_API_KEY`, and an available `LLM_MODEL`. Store values in the cloud provider's secret store, not Git, frontend variables, build logs, or chat. `BRAVE_SEARCH_API_KEY` is optional for general search; the GitHub document scan does not require it.
 4. Choose the demo source: paste the complete GitHub policy in the UI (stored in Supabase as user-supplied, unverified text), or refresh `backend/data/github_privacy_statement.md` and its metadata with `python backend/scripts/download_github_policy.py` before packaging. That ignored snapshot must be included as a paired file and metadata if the hosted downloaded-source option is offered; the app never downloads it implicitly.
 5. Package Python 3.12, `backend/requirements.txt`, and the FastAPI app; build the React app with Node 22.12+ and `corepack pnpm --dir frontend build`. The Vite `/api` proxy is development-only. For production, serve the built frontend and `/api` on one HTTPS origin through an app server/reverse proxy, or configure `FRONTEND_ORIGINS` and a deliberate API base URL if using separate origins. Implement and test the chosen routing before publishing.
-6. Add access control before any public exposure. The current API has no user authentication and accepts claim text and whole documents; its `DEMO_MODE=true` also permits an explicitly labeled synthetic path. Decide who can submit, review, and view stored text. Verify that secrets never reach client bundles or HTTP responses.
+6. The owner has chosen public access for this hackathon demo. Anyone with the URL can submit, review, and view stored text; use public or synthetic documents. Its `DEMO_MODE=true` permits an explicitly labeled synthetic path. Preserve request limits, cross-origin write checks, and the separation of runtime secrets from client bundles and HTTP responses.
 7. On the selected cloud, create the service only after the user approves deployment and the provider's actual build/start/network settings are known. Inject secrets, set the HTTPS origin and port, and check outbound access to Supabase and Gemini. Do not assume the provider's commands, credit balance, or public URL.
 8. Check `GET /health` for `database_ready: true`, then exercise one real submission through the hosted frontend: inspect exact evidence and both agent notes, record a review, and confirm Guardian obeys the backend's `pass`/`hold_for_review` decision. Restart the service and confirm the job and review persist in Supabase. A failed real request must remain an error, never synthetic success.
 9. Record the actual cloud commands/settings, public HTTPS URL, observed checks, costs/limits, and remaining risks in `docs/DEMO_READINESS.md`. Commit and push deployment work to `arman/backend-foundation`; request explicit approval before any merge to `main`.

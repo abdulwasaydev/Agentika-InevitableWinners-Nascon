@@ -1,7 +1,4 @@
-"""Authenticated, same-origin demo hosting; the local API stays unchanged."""
-import base64
-import binascii
-import hmac
+"""Public, same-origin demo hosting; the local API stays unchanged."""
 import os
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -14,29 +11,14 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 class ProductionGateway:
-    """One shared judge account protects all case data, UI assets and API docs."""
+    """Serve the public hackathon UI and API from one origin."""
 
-    def __init__(self, api: ASGIApp, directory: Path, username: str, password: str):
-        if not username or ':' in username or len(password) < 16:
-            raise ValueError('Set a username and a password of at least 16 characters')
+    def __init__(self, api: ASGIApp, directory: Path):
         self.directory = directory.resolve()
         if not (self.directory / 'index.html').is_file():
             raise ValueError('Build the frontend first: index.html is missing')
         self.api = api
-        self.username = username.encode('utf-8')
-        self.password = password.encode('utf-8')
         self.static = StaticFiles(directory=self.directory, html=True)
-
-    def _authenticated(self, headers: Headers) -> bool:
-        try:
-            scheme, token = headers.get('authorization', '').split(' ', 1)
-            if scheme.lower() != 'basic':
-                return False
-            username, password = base64.b64decode(token, validate=True).split(b':', 1)
-            # Evaluate both comparisons, including for an incorrect username.
-            return hmac.compare_digest(username, self.username) & hmac.compare_digest(password, self.password)
-        except (ValueError, binascii.Error):
-            return False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         if scope['type'] == 'lifespan':
@@ -66,13 +48,6 @@ class ProductionGateway:
         if path == '/health' and scope['method'] in ('GET', 'HEAD'):
             await self.api(scope, receive, protected_send)
             return
-        if not self._authenticated(headers):
-            response = PlainTextResponse('Judge login required', status_code=401, headers={
-                'WWW-Authenticate': 'Basic realm="Veritas demo", charset="UTF-8"',
-            })
-            await response(scope, receive, protected_send)
-            return
-
         if scope['method'] not in ('GET', 'HEAD', 'OPTIONS'):
             origin = headers.get('origin')
             # Compare the browser origin to the original public Host. TLS may
@@ -110,12 +85,8 @@ def create_production_app() -> ProductionGateway:
     # Importing the existing API loads ignored backend/.env for local rehearsal.
     from .main import app
 
-    username = os.getenv('DEPLOY_USERNAME', '')
-    password = os.getenv('DEPLOY_PASSWORD', '')
-    if not username or not password:
-        raise RuntimeError('Production requires DEPLOY_USERNAME and DEPLOY_PASSWORD')
     directory = Path(os.getenv('VERITAS_FRONTEND_DIR', str(Path(__file__).resolve().parents[2] / 'frontend' / 'dist')))
-    return ProductionGateway(app, directory, username, password)
+    return ProductionGateway(app, directory)
 
 
 if __name__ == '__main__':

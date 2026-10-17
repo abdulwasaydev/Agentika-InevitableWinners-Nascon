@@ -9,13 +9,11 @@ one worker: the existing FastAPI lifespan owns the database-backed job worker.
 Frontend assets and `/api` share one origin; no Vite development server is used.
 No database migration runs during build or startup.
 
-The production gateway requires `DEPLOY_USERNAME` and a random `DEPLOY_PASSWORD`
-of at least 16 characters. It protects the frontend, stored case APIs, reviews,
-and API documentation with HTTP Basic authentication. Only `/health` is public.
-Use the provider's HTTPS URL. Give judges this dedicated demo account privately;
-everyone using it shares access to the same demo records. Do not submit private
-documents or reuse a personal password. This is a shared hackathon account, not
-per-user authorization. Browser credentials may remain until the browser closes.
+At the owner's explicit request, the production frontend, case APIs, reviews,
+and API documentation are public. No username or password is required, and old
+`DEPLOY_USERNAME` / `DEPLOY_PASSWORD` variables are ignored. Anyone with the URL
+can view submitted policy text, submit verification jobs, and record reviews.
+Use public or synthetic documents for this shared hackathon demo.
 
 Cross-origin browser writes are rejected. Responses use `Cache-Control: no-store`,
 `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and a no-referrer policy.
@@ -29,7 +27,6 @@ Set these as runtime variables, never frontend variables or Docker build args:
 - `DATABASE_URL`: separate Veritas PostgreSQL URL using `postgresql+psycopg://`
   with `sslmode=require`; reviewed schema must already be at `0003_comparison`.
 - `LLM_PROVIDER=gemini`, `LLM_API_KEY`, `LLM_MODEL`: the user's configured Gemini model.
-- `DEPLOY_USERNAME`, `DEPLOY_PASSWORD`: dedicated judge account.
 - `PORT=8000`, `DEMO_MODE=true`: allows the explicitly labeled synthetic mode;
   Live API remains the frontend default. Failed live requests do not become demos.
 - Optional bounded processing settings from `backend/.env.example`.
@@ -49,9 +46,9 @@ Alternatively: `docker build -t veritas:<commit> .` then
 `docker run --rm --env-file <private-runtime-env> -p 8000:8000 veritas:<commit>`.
 Keep the private env file ignored. Do not put secrets in shell arguments or logs.
 
-Verify unauthenticated `/` and `/api/v1/reviews` return 401, login loads the app,
-and `/health` returns `database_ready: true`. Test an authenticated deep link and
-an unknown `/api` path. Run the existing tests and the production-gateway tests.
+Verify `/` and `/api/v1/reviews` return 200 without authorization headers and
+without a `WWW-Authenticate` challenge; `/health` must return `database_ready: true`.
+Test a deep link and an unknown `/api` path. Run the existing tests and the production-gateway tests.
 The Docker health check requires actual database readiness, not just HTTP 200.
 
 ## Clouds by Alternate Futures
@@ -70,7 +67,7 @@ budget cap within the available event credits. Do not top up or subscribe silent
 No public deployment has been verified yet; record its actual URL and settings
 only after the cloud build and hosted checks succeed.
 
-After deployment: check TLS, login, database readiness, Gemini connectivity, full
+After deployment: check TLS, public access, database readiness, Gemini connectivity, full
 policy submission, evidence quotes, persisted human review, and Guardian's hold/
 pass decision. Confirm a disputed or unresolved claim remains held after review.
 Restart once and confirm records persist. Record actual verification and any

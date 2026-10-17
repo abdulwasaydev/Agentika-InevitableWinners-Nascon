@@ -1,5 +1,23 @@
 # Demo readiness
 
+## Public access update at the owner's request
+
+The owner explicitly requested removing the shared judge login, rebuilding, and
+redeploying the demo. The production gateway now serves the UI, API, and API
+documentation without credentials; its old login environment variables are ignored.
+Request limits, same-origin write checks, security headers, blocked secret paths,
+and the single production worker remain in place. Anyone can view demo records
+and submit reviews, so this deployment is intended for public or synthetic input.
+
+Verification: backend tests passed (42 passed, one optional PostgreSQL test skipped);
+frontend type checks and production build passed. Gateway tests confirm public GET
+and POST access, startup without login variables, blocked cross-origin writes,
+SPA routes, and real API/asset 404s. The updated cloud image still needs a fresh
+hosted access check. The preceding image passed HTTPS/database/authenticated-page
+checks, but both new live verification jobs failed with `PROVIDER_ERROR` and stayed
+held; login removal does not fix that provider failure. Earlier checkpoints below
+record the behavior of earlier versions.
+
 ## Update: local Supabase and official-policy preparation
 
 On 2026-10-17 the separate Veritas Supabase connection reported `database_ready: true`. The official GitHub privacy statement was downloaded through GitHub Docs' Article API into ignored `backend/data/`; SHA-256 and retrieval time are recorded beside it. With a Gemini key in ignored `backend/.env`, two downloaded-source and three full-policy-paste claims were submitted through the local frontend proxy and persisted in Supabase. On the pasted path, the absolute no-training claim returned a cited challenge and stayed `hold_for_review` after human dispute; the account-email claim returned cited support and changed from hold to `pass` after human approval; the service-provider claim returned cited support and remains pending review. All pasted evidence was labeled user supplied with no authenticated URL, and every quote was found in the stored pasted text. Claims, evidence, two-role notes, reviews, and release actions survived a FastAPI restart. The Live API screen no longer displays fictional subscription prefills; Synthetic demo remains explicitly labeled. Keep the milestone table below as the original pre-configuration record.
