@@ -1,0 +1,33 @@
+Veritas local run guide
+
+Requirements: Python 3.12, Node.js 22.12 or later, and pnpm 11.25.0.
+The backend stores jobs and reviews in backend/data/veritas.sqlite3. It creates
+that file automatically. No Supabase account or remote database is required.
+
+From the repository root, set up Python once in PowerShell:
+  py -3.12 -m venv .venv
+  .\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+
+For a live Gemini scan, copy backend\.env.example to backend\.env, then set
+LLM_API_KEY in that ignored local file. Keep the key out of Git. This step is
+optional for the synthetic demo mode and local policy comparison.
+
+Start the backend in one terminal:
+  cd backend
+  ..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+Start the frontend in another terminal from the repository root:
+  cd frontend
+  pnpm install --frozen-lockfile
+  pnpm dev
+
+Open http://127.0.0.1:5173/ . The API health endpoint is
+http://127.0.0.1:8000/health . Use Synthetic demo in the UI for an offline
+preview. Live API runs against the local backend; the pasted GitHub policy
+scan also requires a valid Gemini key and network access.
+For a GitHub policy scan without pasted text, refresh the ignored local
+snapshot from backend with: ..\.venv\Scripts\python.exe scripts\download_github_policy.py
+
+For one local server instead, run `pnpm build` in frontend, then run this
+from backend and open http://127.0.0.1:8000/ :
+  ..\.venv\Scripts\python.exe -m uvicorn app.production:create_production_app --factory --host 127.0.0.1 --port 8000

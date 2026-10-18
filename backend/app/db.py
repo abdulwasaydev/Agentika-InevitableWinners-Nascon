@@ -1,42 +1,53 @@
-"""Database configuration; no implicit SQLite or in-memory fallback."""
+"""Local SQLite persistence for jobs, evidence, reviews, and lineage."""
 
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import Engine
+from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy.engine import Engine, URL
 from sqlalchemy.orm import Session, sessionmaker
 
 from .models import Base
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND_DIR / ".env")
 
 
-def database_url() -> str | None:
-    return os.getenv("DATABASE_URL") or None
+def local_db_path() -> Path:
+    configured = os.getenv("VERITAS_DB_PATH")
+    return Path(configured).expanduser().resolve() if configured else BACKEND_DIR / "data" / "veritas.sqlite3"
 
 
-def make_engine(url: str | None = None) -> Engine | None:
-    url = url or database_url()
-    if not url:
-        return None
-    if not url.startswith("postgresql+psycopg://"):
-        raise ValueError("DATABASE_URL must use PostgreSQL with psycopg")
-    return create_engine(url, pool_pre_ping=True, pool_size=3, max_overflow=0)
+def database_url() -> str:
+    return str(URL.create("sqlite", database=str(local_db_path())))
+
+
+def make_engine(url: str | None = None) -> Engine:
+    if url is not None and not url.startswith("sqlite:///"):
+        raise ValueError("Only a local SQLite database is supported")
+    if url is None:
+        local_db_path().parent.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(url or database_url(), connect_args={"check_same_thread": False, "timeout": 30})
+
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(connection, _record):
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    return engine
 
 
 def database_ready(engine: Engine | None) -> bool:
     if engine is None:
         return False
     try:
+        Base.metadata.create_all(engine)
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         inspector = inspect(engine)
-        if not all(inspector.has_table(name) for name in Base.metadata.tables) or not inspector.has_table("alembic_version"):
-            return False
-        with engine.connect() as connection:
-            return connection.scalar(text("SELECT version_num FROM alembic_version")) == "0003_comparison"
+        return all(inspector.has_table(name) for name in Base.metadata.tables)
     except Exception:
         return False
 

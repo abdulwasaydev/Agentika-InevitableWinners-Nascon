@@ -7,11 +7,13 @@ COPY frontend/ ./
 RUN pnpm build
 
 FROM python:3.12-slim-bookworm AS runtime
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PORT=8000
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PORT=8000 VERITAS_DB_PATH=/app/data/veritas.sqlite3
 WORKDIR /app/backend
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt \
-    && useradd --create-home --uid 10001 veritas
+    && useradd --create-home --uid 10001 veritas \
+    && mkdir -p /app/data \
+    && chown veritas:veritas /app/data
 COPY backend/app/ ./app/
 COPY fixtures/ /app/fixtures/
 COPY --from=frontend-build /build/frontend/dist/ /app/frontend/dist/

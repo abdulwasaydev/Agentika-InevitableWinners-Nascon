@@ -1,4 +1,4 @@
-"""PostgreSQL persistence model for jobs, evidence, reviews and lineage."""
+"""Local persistence model for jobs, evidence, reviews and lineage."""
 
 from datetime import datetime, timezone
 from uuid import UUID, uuid4

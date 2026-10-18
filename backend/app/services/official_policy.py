@@ -29,7 +29,7 @@ POLICY_DOWNLOAD = (
     "?pathname=/en/site-policy/privacy-policies/github-general-privacy-statement"
 )
 POLICY_DIR = Path(__file__).resolve().parents[2] / "data"
-POLICY_FILE = POLICY_DIR / "github_privacy_statement.md"
+POLICY_FILE = POLICY_DIR / "github_privacy_statement.txt"
 POLICY_META = POLICY_DIR / "github_privacy_statement.json"
 POLICY_ORIGIN = "official_github_policy"
 PASTED_POLICY_ORIGIN = "user_pasted_github_policy"

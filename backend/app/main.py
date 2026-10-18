@@ -1,4 +1,4 @@
-"""Veritas HTTP API. One bounded worker processes persisted jobs."""
+"""Veritas HTTP API. One bounded worker processes locally persisted jobs."""
 
 import asyncio
 import os
@@ -45,7 +45,7 @@ async def _worker(factory, wake: asyncio.Event) -> None:
         try:
             worked = await asyncio.to_thread(_process_next, factory)
         except Exception:
-            # A transient database outage must not terminate the only worker.
+            # A transient local database error must not terminate the worker.
             worked = False
         if worked:
             continue
@@ -58,10 +58,7 @@ async def _worker(factory, wake: asyncio.Event) -> None:
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    try:
-        engine = make_engine()
-    except ValueError:
-        engine = None
+    engine = make_engine()
     ready = database_ready(engine)
     application.state.engine = engine
     application.state.factory = session_factory(engine) if ready else None
@@ -107,7 +104,7 @@ async def app_error_handler(_request: Request, exc: AppError):
 def _factory(request: Request):
     factory = getattr(request.app.state, "factory", None)
     if factory is None:
-        raise AppError(503, "DATABASE_UNAVAILABLE", "Configure PostgreSQL and apply the reviewed migration, then restart the API")
+        raise AppError(503, "DATABASE_UNAVAILABLE", "The local database is unavailable; check backend/data permissions and restart the API")
     return factory
 
 
